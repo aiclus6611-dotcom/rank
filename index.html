@@ -3,647 +3,464 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>互動排序投票平台 (無限組別版)</title>
-    <!-- 使用 Tailwind CSS 加速排版 -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>結構化排序投票系統 (無限組別版)</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
     <style>
         body { font-family: "微軟正黑體", sans-serif; background-color: #f4f6f8; margin: 0; padding: 0; overflow-x: hidden; }
         
-        /* 自訂動畫與特效 */
-        .card-hover:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
-        .toast-message {
+        /* --- 通用元件 --- */
+        .btn { padding: 10px 18px; border-radius: 6px; border: none; cursor: pointer; font-size: 1rem; margin: 5px; transition: 0.2s; white-space: nowrap; font-weight: bold;}
+        .btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1);}
+        .btn:disabled { background: #ccc !important; cursor: not-allowed; transform: none; box-shadow: none; color: #666 !important;}
+        .btn-primary { background: #1976d2; color: white; }
+        .btn-success { background: #4caf50; color: white; }
+        .btn-danger { background: #d32f2f; color: white; }
+        .btn-secondary { background: #757575; color: white; }
+        .btn-outline { background: transparent; border: 2px solid #1976d2; color: #1976d2; }
+        
+        input, select { padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; box-sizing: border-box; }
+        .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+
+        /* --- 大廳樣式 --- */
+        .lobby-wrapper { min-height: 100vh; padding: 40px 20px; box-sizing: border-box; }
+        .lobby-container { max-width: 1000px; margin: 0 auto; }
+        .lobby-header { text-align: center; color: #333; margin-bottom: 40px; font-size: 2rem; font-weight: bold; }
+        
+        .create-box { display: flex; gap: 15px; margin-bottom: 40px; align-items: center; flex-wrap: wrap; }
+        .create-box input { flex: 1; min-width: 250px; font-size: 1.1rem; padding: 12px; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .item-card { border-top: 5px solid #1976d2; display: flex; flex-direction: column; transition: 0.3s; }
+        .item-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+        .item-card h3 { margin: 0 0 10px 0; color: #333; font-size: 1.4rem; }
+        .meta { color: #888; font-size: 0.9rem; margin-bottom: 25px; flex: 1; }
+        .actions { display: flex; flex-direction: column; gap: 10px; }
+        .actions .btn { margin: 0; width: 100%; text-align: center; box-sizing: border-box; }
+
+        /* --- 講師端設定區 --- */
+        .teacher-wrapper { padding: 20px; max-width: 1000px; margin: 0 auto; }
+        .config-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .config-row input { flex: 1; }
+        .result-bar-container { background: #eee; border-radius: 8px; height: 24px; width: 100%; margin-top: 8px; overflow: hidden; position: relative;}
+        .result-bar { background: #4caf50; height: 100%; transition: width 0.5s ease-out; }
+        .result-score { position: absolute; right: 10px; top: 0; line-height: 24px; font-size: 0.85rem; font-weight: bold; color: #333; }
+        
+        /* --- 學員端樣式 --- */
+        .student-wrapper { padding: 20px; max-width: 600px; margin: 0 auto; padding-bottom: 80px;}
+        .option-btn {
+            display: block; width: 100%; text-align: left; background: white; border: 2px solid #e0e0e0;
+            padding: 15px 20px; margin-bottom: 15px; border-radius: 10px; font-size: 1.1rem;
+            cursor: pointer; transition: 0.2s; position: relative; color: #333;
+        }
+        .option-btn:hover { border-color: #bbdefb; background: #f8fbff; }
+        .option-btn.selected { border-color: #1976d2; background: #e3f2fd; box-shadow: 0 4px 10px rgba(25,118,210,0.15); }
+        
+        .rank-badge {
+            position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
+            width: 32px; height: 32px; background: #1976d2; color: white;
+            border-radius: 50%; text-align: center; line-height: 32px; font-weight: bold; font-size: 1.2rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .bottom-action {
+            position: fixed; bottom: 0; left: 0; right: 0; background: white;
+            padding: 15px 20px; box-shadow: 0 -2px 15px rgba(0,0,0,0.1);
+            display: flex; justify-content: space-between; align-items: center; z-index: 100;
+        }
+
+        /* --- 狀態與 UI 元件 --- */
+        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; margin-left: 10px;}
+        .status-on { background: #e8f5e9; color: #2e7d32; }
+        .status-off { background: #ffebee; color: #c62828; }
+
+        .toast {
             position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.85); color: white; padding: 12px 24px; border-radius: 30px;
             z-index: 9999; animation: fadeInOut 3s forwards; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
-        @keyframes fadeInOut {
-            0% { opacity: 0; bottom: 0px; } 10% { opacity: 1; bottom: 20px; }
-            90% { opacity: 1; bottom: 20px; } 100% { opacity: 0; bottom: 30px; }
-        }
-
-        /* 投票選項樣式 */
-        .option-btn {
-            position: relative; transition: all 0.2s ease;
-        }
-        .option-btn.selected {
-            background-color: #e0f2fe; border-color: #3b82f6; box-shadow: 0 0 0 2px #3b82f6;
-        }
-        .rank-badge {
-            position: absolute; top: -10px; right: -10px; width: 28px; height: 28px;
-            background-color: #ef4444; color: white; border-radius: 50%;
-            display: flex; justify-content: center; align-items: center;
-            font-weight: bold; font-size: 0.9rem; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        @keyframes popIn {
-            from { transform: scale(0); } to { transform: scale(1); }
-        }
+        @keyframes fadeInOut { 0% { opacity: 0; bottom: 0px; } 10% { opacity: 1; bottom: 20px; } 90% { opacity: 1; bottom: 20px; } 100% { opacity: 0; bottom: 30px; } }
         
-        /* 長條圖樣式 */
-        .bar-container { width: 100%; background-color: #e5e7eb; border-radius: 9999px; overflow: hidden; height: 24px; }
-        .bar-fill { height: 100%; background-color: #3b82f6; transition: width 0.5s ease; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 3000; display: flex; justify-content: center; align-items: center; }
+        .modal-box { background: white; padding: 25px; border-radius: 10px; width: 400px; max-width: 90%; text-align: center; }
     </style>
 </head>
 <body>
-    <div id="app" class="min-h-screen">
-        <!-- 載入中畫面 -->
-        <div v-if="isLoading" class="fixed inset-0 bg-white/90 flex justify-center items-center z-50 text-2xl font-bold text-gray-700">
+    <div id="app">
+        <div v-if="isLoading" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.9); display:flex; justify-content:center; align-items:center; z-index:9999; font-size: 1.5rem; font-weight: bold;">
             載入中...
         </div>
+        <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
 
-        <!-- 全域 Toast 訊息 -->
-        <div v-if="toastMsg" class="toast-message">{{ toastMsg }}</div>
-
-        <!-- 確認對話框 -->
-        <div v-if="confirmModal.show" class="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4">
-            <div class="bg-white p-6 rounded-xl w-full max-w-md text-center shadow-2xl">
-                <h3 class="text-xl font-bold text-red-600 mb-2">⚠️ 確認操作</h3>
-                <p class="text-gray-600 mb-6 text-lg">{{ confirmModal.message }}</p>
-                <div class="flex justify-center gap-4">
-                    <button class="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition" @click="confirmModal.show = false; confirmModal.action = null">取消</button>
-                    <button class="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition" @click="executeConfirm">確定</button>
+        <div v-if="confirmModal.show" class="modal-overlay">
+            <div class="modal-box">
+                <h3 style="margin-top: 0; color: #d32f2f;">⚠️ 確認操作</h3>
+                <p style="margin-bottom: 25px; font-size: 1.1rem; color: #555;">{{ confirmModal.message }}</p>
+                <div style="display: flex; justify-content: center; gap: 15px;">
+                    <button class="btn btn-secondary" @click="confirmModal.show = false">取消</button>
+                    <button class="btn btn-danger" @click="executeConfirm">確定</button>
                 </div>
             </div>
         </div>
 
-        <!-- ==================== 視圖 1：管理大廳 (Lobby) ==================== -->
-        <div v-if="currentView === 'lobby' && !isLoading" class="p-6 md:p-10 max-w-5xl mx-auto">
-            <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-10">📊 互動排序投票管理大廳</h1>
-            
-            <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-blue-500 flex flex-col md:flex-row gap-4 mb-10 items-center">
-                <input type="text" v-model="newRoomName" placeholder="輸入新投票組別名稱..." @keydown.enter="createRoom"
-                       class="flex-1 text-lg p-3 border border-gray-300 rounded focus:outline-none focus:border-blue-500 w-full">
-                <button class="w-full md:w-auto px-8 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded shadow transition text-lg whitespace-nowrap" @click="createRoom">
-                    ＋ 建立新投票
-                </button>
-            </div>
+        <div v-if="currentView === 'lobby'" class="lobby-wrapper">
+            <div class="lobby-container">
+                <div class="lobby-header">📊 結構化排序投票系統</div>
+                
+                <div class="card create-box">
+                    <input type="text" v-model="newPollName" placeholder="輸入新投票活動名稱..." @keydown.enter="createPoll">
+                    <button class="btn btn-success" @click="createPoll">＋ 建立新投票</button>
+                </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div v-for="room in roomsList" :key="room.id" class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-hover flex flex-col">
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">{{ room.name }}</h3>
-                    <div class="text-sm text-gray-500 mb-6 flex-1">建立於: {{ formatDate(room.createdAt) }}</div>
+                <div class="grid">
+                    <div v-for="poll in pollsList" :key="poll.id" class="card item-card">
+                        <h3>{{ poll.name }}</h3>
+                        <div class="meta">建立於: {{ new Date(poll.createdAt).toLocaleString() }}</div>
+                        <div class="actions">
+                            <a :href="getLink(poll.id, 'teacher')" target="_blank" class="btn btn-primary" style="text-decoration:none;">👨‍🏫 開啟講師後台</a>
+                            <button class="btn btn-outline" @click="copyLink(poll.id, 'student')">🔗 複製學員連結</button>
+                            <button class="btn btn-danger" @click="deletePoll(poll.id)">🗑️ 刪除活動</button>
+                        </div>
+                    </div>
+                    <div v-if="!isLoading && pollsList.length === 0" style="grid-column: 1 / -1; text-align: center; color: #999; padding: 40px;">
+                        <h2 style="margin:0;">目前無投票活動</h2><p>請建立您的第一個投票框架。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-else-if="currentView === 'teacher'" class="teacher-wrapper">
+            <h2 style="margin-top:0; display:flex; align-items:center; justify-content: space-between;">
+                <span>後台控制：{{ pollSettings.title || '未命名投票' }}</span>
+                <span class="status-badge" :class="pollSettings.isActive ? 'status-on' : 'status-off'">
+                    {{ pollSettings.isActive ? '🟢 投票進行中' : '🔴 投票已暫停' }}
+                </span>
+            </h2>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="card">
+                    <h3 style="margin-top:0; border-bottom: 2px solid #eee; padding-bottom: 10px;">⚙️ 題目設計</h3>
                     
-                    <div class="flex flex-col gap-3 mt-auto">
-                        <a :href="getRoomLink(room.id, 'teacher')" target="_blank" class="text-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded transition">
-                            👨‍🏫 開啟講師後台
-                        </a>
-                        <button class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded transition" @click="copyLink(room.id, 'student')">
-                            🔗 複製學員連結
-                        </button>
-                        <button class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded transition" @click="deleteRoom(room.id)">
-                            🗑️ 刪除組別
-                        </button>
-                    </div>
-                </div>
-                
-                <div v-if="roomsList.length === 0" class="col-span-full text-center py-16 bg-white rounded-xl text-gray-500">
-                    <span class="text-4xl block mb-2">🤷‍♂️</span>
-                    <h2 class="text-xl font-bold">目前還沒有任何投票組別</h2>
-                    <p class="mt-2">請從上方輸入名稱建立第一個活動！</p>
-                </div>
-            </div>
-        </div>
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">主軸問題：</label>
+                    <input type="text" v-model="localSettings.question" placeholder="例如：針對本次專案，請選出您認為最重要的三個成功關鍵..." style="width:100%; margin-bottom: 15px;">
+                    
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">每人可投幾票 (排序)：</label>
+                    <select v-model.number="localSettings.maxVotes" style="width:100%; margin-bottom: 20px;">
+                        <option v-for="n in 10" :key="n" :value="n">選出前 {{ n }} 名</option>
+                    </select>
 
-        <!-- ==================== 視圖 2：講師端 (Teacher) ==================== -->
-        <div v-else-if="currentView === 'teacher' && !isLoading" class="min-h-screen bg-gray-100 pb-20">
-            <!-- 頂部導覽列 -->
-            <div class="bg-gray-800 text-white p-4 shadow-md sticky top-0 z-40 flex justify-between items-center">
-                <div>
-                    <h2 class="font-bold text-lg md:text-xl truncate max-w-[200px] md:max-w-md inline-block align-middle">
-                        👨‍🏫 講師控制台 - {{ roomData?.name || '載入中' }}
-                    </h2>
-                    <span class="ml-4 px-2 py-1 rounded text-xs font-bold bg-white/20">
-                        狀態：{{ roomData?.settings?.isOpen ? '🟢 投票進行中' : '🔴 設定/關閉中' }}
-                    </span>
-                </div>
-                <div class="flex gap-2">
-                    <button class="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm transition" @click="copyLink(roomId, 'student')">🔗 複製學員連結</button>
-                </div>
-            </div>
-
-            <div class="max-w-4xl mx-auto p-4 md:p-6 mt-4">
-                
-                <!-- 狀態控制區塊 -->
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 text-center">
-                    <div v-if="!roomData?.settings?.isOpen">
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">準備階段</h3>
-                        <p class="text-gray-600 mb-4">請在下方設定題目與選項。設定完成後，點擊按鈕開放投票。</p>
-                        <button class="px-8 py-3 bg-green-500 hover:bg-green-600 text-white text-lg font-bold rounded-full shadow-lg transition transform hover:scale-105" @click="toggleVoting(true)">
-                            🚀 開放投票，讓學員進入！
-                        </button>
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">候選選項：</label>
+                    <div v-for="(opt, idx) in localSettings.options" :key="idx" class="config-row">
+                        <span style="font-weight:bold; color:#757575;">{{ idx + 1 }}.</span>
+                        <input type="text" v-model="localSettings.options[idx]" placeholder="輸入選項內容">
+                        <button class="btn btn-danger" style="margin:0;" @click="localSettings.options.splice(idx, 1)">✕</button>
                     </div>
-                    <div v-else>
-                        <h3 class="text-xl font-bold text-green-600 mb-2">🟢 投票正在進行中...</h3>
-                        <p class="text-gray-600 mb-4">學員現在可以進入連結並進行排序投票。</p>
-                        <button class="px-8 py-3 bg-red-500 hover:bg-red-600 text-white text-lg font-bold rounded-full shadow-lg transition" @click="toggleVoting(false)">
-                            ⏹️ 結束投票 (關閉學員操作)
-                        </button>
+                    <button class="btn btn-outline" style="width:100%; margin-top:10px;" @click="localSettings.options.push('')">＋ 新增選項</button>
+
+                    <hr style="margin: 25px 0; border: 0; border-top: 1px dashed #ccc;">
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-primary" style="flex: 1;" @click="saveSettings">💾 儲存並更新給學員</button>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- 左側：設定區 (僅在關閉時可編輯，或加上 disabled) -->
-                    <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-purple-500">
-                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex justify-between items-center">
-                            <span>⚙️ 投票設定</span>
-                            <span v-if="roomData?.settings?.isOpen" class="text-xs font-normal text-orange-500 bg-orange-100 px-2 py-1 rounded">進行中不可修改</span>
-                        </h3>
-                        
-                        <div class="mb-4">
-                            <label class="block text-gray-700 font-bold mb-2">提問主題：</label>
-                            <input type="text" v-model="editSettings.question" :disabled="roomData?.settings?.isOpen"
-                                   placeholder="例如：您認為本專案最重要的三個成功因素是？"
-                                   class="w-full p-3 border border-gray-300 rounded focus:border-purple-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500">
-                        </div>
+                <div class="card">
+                    <h3 style="margin-top:0; border-bottom: 2px solid #eee; padding-bottom: 10px;">📊 即時結果區</h3>
+                    
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <button v-if="!pollSettings.isActive" class="btn btn-success" style="flex:1;" @click="toggleActive(true)">▶️ 開放投票</button>
+                        <button v-else class="btn btn-danger" style="flex:1;" @click="toggleActive(false)">⏸️ 停止投票</button>
+                        <button class="btn btn-secondary" @click="clearVotes">🗑️ 清空所有票數</button>
+                    </div>
 
-                        <div class="mb-6">
-                            <label class="block text-gray-700 font-bold mb-2">每人可投票數 (取前幾名)：</label>
-                            <div class="flex items-center gap-2">
-                                <input type="number" v-model.number="editSettings.maxVotes" min="1" :max="editSettings.options.length || 1" :disabled="roomData?.settings?.isOpen"
-                                       class="w-24 p-3 border border-gray-300 rounded text-center disabled:bg-gray-100">
-                                <span class="text-gray-600">票 (名)</span>
+                    <div style="margin-bottom: 15px; color: #555; font-weight: bold;">
+                        目前已投票人數：{{ Object.keys(votes).length }} 人
+                    </div>
+
+                    <div v-if="rankedResults.length > 0">
+                        <div v-for="(res, idx) in rankedResults" :key="idx" style="margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: space-between; font-weight: bold;">
+                                <span>第 {{ idx + 1 }} 名：{{ res.text || '(空白選項)' }}</span>
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">計分方式：若設為3票，第1名得3分、第2名得2分、第3名得1分。</p>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="block text-gray-700 font-bold mb-2">選項清單：</label>
-                            <div class="space-y-2 mb-3">
-                                <div v-for="(opt, index) in editSettings.options" :key="opt.id" class="flex gap-2">
-                                    <span class="p-3 bg-gray-100 rounded text-gray-500 font-bold w-10 text-center flex-shrink-0">{{ index + 1 }}</span>
-                                    <input type="text" v-model="opt.text" :disabled="roomData?.settings?.isOpen" placeholder="輸入選項內容"
-                                           class="flex-1 p-3 border border-gray-300 rounded focus:border-purple-500 outline-none disabled:bg-gray-100">
-                                    <button class="px-3 py-2 bg-red-100 text-red-600 hover:bg-red-200 rounded disabled:opacity-50" 
-                                            :disabled="roomData?.settings?.isOpen || editSettings.options.length <= 1"
-                                            @click="removeOption(index)">✕</button>
-                                </div>
-                            </div>
-                            <button v-if="!roomData?.settings?.isOpen" class="w-full py-2 border-2 border-dashed border-gray-300 text-gray-600 font-bold rounded hover:bg-gray-50 hover:border-gray-400 transition" @click="addOption">
-                                ＋ 新增選項
-                            </button>
-                        </div>
-
-                        <button v-if="!roomData?.settings?.isOpen" class="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded shadow transition mt-4" @click="saveSettings">
-                            💾 儲存設定
-                        </button>
-                    </div>
-
-                    <!-- 右側：即時結果區 -->
-                    <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-blue-500">
-                        <div class="flex justify-between items-end mb-6">
-                            <h3 class="text-xl font-bold text-gray-800">📊 即時開票結果</h3>
-                            <span class="text-sm text-gray-500 font-bold bg-gray-100 px-3 py-1 rounded-full">
-                                已投票人數: {{ Object.keys(votesData).length }} 人
-                            </span>
-                        </div>
-
-                        <div v-if="votingResults.length === 0" class="text-center text-gray-400 py-10 italic">
-                            尚無投票資料
-                        </div>
-                        
-                        <div v-else class="space-y-6">
-                            <div v-for="(res, index) in votingResults" :key="res.id" class="relative">
-                                <div class="flex justify-between items-end mb-1">
-                                    <div class="font-bold text-gray-800 flex items-center gap-2">
-                                        <span class="inline-block w-6 text-center text-gray-500">#{{ index + 1 }}</span>
-                                        {{ res.text }}
-                                    </div>
-                                    <div class="font-bold text-blue-600 text-lg">{{ res.score }} <span class="text-sm text-gray-500 font-normal">分</span></div>
-                                </div>
-                                <div class="bar-container">
-                                    <div class="bar-fill" :style="{ width: (res.score / maxScore * 100 || 0) + '%' }"></div>
-                                </div>
-                                <!-- 詳細明細 Tooltip (簡易版直接顯示在下方) -->
-                                <div class="text-xs text-gray-500 mt-1 flex gap-2 flex-wrap">
-                                    獲得票數分佈：
-                                    <span v-for="(count, rank) in res.details" :key="rank" v-show="count > 0" class="bg-gray-100 px-1 rounded">
-                                        第{{rank}}名: {{count}}票
-                                    </span>
-                                </div>
+                            <div class="result-bar-container">
+                                <div class="result-bar" :style="{ width: (res.score / maxScore * 100) + '%' }"></div>
+                                <span class="result-score">積分: {{ res.score }}</span>
                             </div>
                         </div>
-
-                        <div class="mt-8 text-right">
-                            <button class="px-4 py-2 text-sm text-red-500 border border-red-500 rounded hover:bg-red-50 transition" @click="clearVotes">
-                                🗑️ 清空所有投票紀錄
-                            </button>
-                        </div>
+                        <p style="font-size: 0.85rem; color: #888; margin-top: 20px;">
+                            * 計分方式：選出前 {{ pollSettings.maxVotes }} 名。第 1 名得 {{ pollSettings.maxVotes }} 分，依序遞減。
+                        </p>
+                    </div>
+                    <div v-else style="text-align: center; color: #999; padding: 20px;">
+                        尚無投票資料，或請先建立選項。
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- ==================== 視圖 3：學員端 (Student) ==================== -->
-        <div v-else-if="currentView === 'student' && !isLoading" class="min-h-screen p-4 md:p-6 pb-24">
-            <div class="max-w-2xl mx-auto">
-                <div class="text-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800">📝 課堂互動時間</h2>
+        <div v-else-if="currentView === 'student'" class="student-wrapper">
+            <div v-if="!pollSettings.isActive" class="card" style="text-align: center; padding: 60px 20px;">
+                <h2 style="color: #666;">⏳ 投票尚未開始</h2>
+                <p>請稍候，等待講師開放投票閘門...</p>
+            </div>
+            
+            <div v-else>
+                <div class="card" style="margin-bottom: 20px; border-left: 6px solid #1976d2;">
+                    <h2 style="margin: 0 0 10px 0; color: #333; line-height: 1.4;">{{ pollSettings.question || '請針對下方選項進行排序：' }}</h2>
+                    <p style="margin: 0; color: #e65100; font-weight: bold;">
+                        📌 規則：請依重要性點選出前 {{ pollSettings.maxVotes }} 名。先點選的為第 1 名。若要修改，可再次點擊選項取消。
+                    </p>
                 </div>
 
-                <div v-if="!roomData?.settings?.isOpen" class="bg-white p-10 rounded-2xl shadow-md text-center border-t-4 border-yellow-500">
-                    <span class="text-5xl block mb-4">⏳</span>
-                    <h3 class="text-2xl font-bold text-gray-800 mb-2">投票尚未開放</h3>
-                    <p class="text-gray-600 text-lg">請等待講師開放投票，畫面將自動更新。</p>
+                <div style="margin-bottom: 20px;">
+                    <div v-for="(opt, idx) in pollSettings.options" :key="idx" 
+                         class="option-btn" 
+                         :class="{ 'selected': mySelections.includes(idx) }"
+                         @click="toggleSelection(idx)">
+                        {{ opt }}
+                        <div v-if="mySelections.includes(idx)" class="rank-badge">
+                            {{ mySelections.indexOf(idx) + 1 }}
+                        </div>
+                    </div>
                 </div>
 
-                <div v-else class="bg-white p-6 md:p-8 rounded-2xl shadow-md border-t-4 border-blue-500">
-                    <!-- 題目區塊 -->
-                    <div class="mb-8 border-b pb-6">
-                        <h3 class="text-xl md:text-2xl font-bold text-gray-800 mb-3 leading-tight">
-                            Q: {{ roomData.settings.question || '請針對以下選項進行重要度排序' }}
-                        </h3>
-                        <div class="bg-blue-50 p-3 rounded-lg text-blue-800 font-medium inline-block">
-                            💡 請選出您認為最重要的 <strong class="text-xl">{{ roomData.settings.maxVotes }}</strong> 個項目。<br>
-                            <span class="text-sm">操作提示：先點擊的是第1名，依序遞增。若要取消，請再次點擊該選項。</span>
-                        </div>
+                <div class="bottom-action">
+                    <div>
+                        已選擇：<strong>{{ mySelections.length }}</strong> / {{ pollSettings.maxVotes }} 
                     </div>
-
-                    <!-- 選項區塊 -->
-                    <div class="flex flex-col gap-3 mb-8">
-                        <button v-for="opt in roomData.settings.options" :key="opt.id"
-                                @click="toggleStudentOption(opt.id)"
-                                :class="['option-btn text-left p-4 md:p-5 rounded-xl border-2 text-lg font-medium transition-colors bg-gray-50 border-gray-200 hover:border-gray-300', 
-                                         studentSelected.includes(opt.id) ? 'selected' : '']">
-                            <div class="pr-6">{{ opt.text }}</div>
-                            
-                            <!-- 名次徽章 -->
-                            <div v-if="studentSelected.includes(opt.id)" class="rank-badge">
-                                {{ studentSelected.indexOf(opt.id) + 1 }}
-                            </div>
-                        </button>
-                    </div>
-
-                    <!-- 狀態與送出區塊 -->
-                    <div class="sticky bottom-4 bg-white/95 backdrop-blur p-4 rounded-xl shadow-lg border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-                        <div class="font-bold text-gray-700">
-                            已選擇：<span :class="studentSelected.length === roomData.settings.maxVotes ? 'text-green-600 text-xl' : 'text-blue-600 text-xl'">{{ studentSelected.length }}</span> / {{ roomData.settings.maxVotes }} 項
-                        </div>
-                        <button class="w-full md:w-auto px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-lg shadow transition"
-                                :disabled="studentSelected.length === 0"
-                                @click="submitVote">
-                            {{ hasVoted ? '🔄 更新我的投票' : '📤 送出我的投票' }}
-                        </button>
-                    </div>
+                    <button class="btn btn-primary" :disabled="mySelections.length === 0" @click="submitVote" style="margin:0; font-size:1.1rem; padding: 12px 24px;">
+                        📤 確認送出
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Firebase 11 模組化引入與 Vue 3 -->
-    <script type="module">
-        import { createApp, ref, reactive, computed, onMounted, onUnmounted, watch } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // --- 1. Firebase 初始化 (遵循 Canvas 嚴格規範) ---
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            // 提供本機測試假設定 (Canvas 環境會自動覆寫)
-            apiKey: "mock-key", projectId: "mock-project", appId: "mock-app"
+    <script>
+        const { createApp } = Vue;
+        // 共用您的 Firebase 設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUPGhkiJgxeYDYHqEaXCYvKh2vdTGqypw",
+            authDomain: "class-discussion-01.firebaseapp.com",
+            databaseURL: "https://class-discussion-01-default-rtdb.firebaseio.com",
+            projectId: "class-discussion-01",
+            storageBucket: "class-discussion-01.firebasestorage.app",
+            messagingSenderId: "724687365020",
+            appId: "1:724687365020:web:380b5d85872dc2d9b85e59",
+            measurementId: "G-XYN5JV48T7"
         };
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-voting-app';
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
         createApp({
-            setup() {
-                // --- 全域狀態 ---
-                const user = ref(null);
-                const isLoading = ref(true);
-                const currentView = ref(''); // 'lobby', 'teacher', 'student'
-                const roomId = ref('');
-                const toastMsg = ref('');
-                const confirmModal = reactive({ show: false, message: '', action: null });
-
-                // --- 大廳狀態 ---
-                const roomsList = ref([]);
-                const newRoomName = ref('');
-
-                // --- 房間共用狀態 ---
-                const roomData = ref(null); // { id, name, createdAt, settings: {...} }
-                const votesData = ref({});  // userId -> { timestamp, rankedChoices: [] }
-                
-                // --- 講師端狀態 ---
-                const editSettings = reactive({ question: '', options: [], maxVotes: 3 });
-                let unsubRoom = null;
-                let unsubVotes = null;
-
-                // --- 學員端狀態 ---
-                const studentSelected = ref([]); // 存放選取的選項 ID，順序代表名次
-                const hasVoted = ref(false);
-
-                // --- 共用 UI 方法 ---
-                const showMessage = (msg) => {
-                    toastMsg.value = msg;
-                    setTimeout(() => { toastMsg.value = ''; }, 3000);
-                };
-                const askConfirm = (message, action) => {
-                    confirmModal.message = message;
-                    confirmModal.action = action;
-                    confirmModal.show = true;
-                };
-                const executeConfirm = () => {
-                    if(confirmModal.action) confirmModal.action();
-                    confirmModal.show = false;
-                    confirmModal.action = null;
-                };
-                const generateId = () => Math.random().toString(36).substr(2, 9);
-                const formatDate = (ts) => new Date(ts).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-
-                // --- 路由判定 ---
-                const initRoute = () => {
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const roomParam = urlParams.get('room');
-                    const roleParam = urlParams.get('role');
-
-                    if (!roomParam) {
-                        currentView.value = 'lobby';
-                        loadLobby();
-                    } else {
-                        roomId.value = roomParam;
-                        currentView.value = roleParam === 'teacher' ? 'teacher' : 'student';
-                        loadRoom(roomId.value);
-                    }
-                };
-
-                // --- 資料庫操作：Lobby ---
-                const loadLobby = () => {
-                    if (!user.value) return;
-                    const roomsRef = collection(db, 'artifacts', appId, 'public', 'data', 'poll_rooms');
-                    onSnapshot(roomsRef, (snapshot) => {
-                        const rooms = [];
-                        snapshot.forEach(doc => rooms.push({ id: doc.id, ...doc.data() }));
-                        rooms.sort((a, b) => b.createdAt - a.createdAt);
-                        roomsList.value = rooms;
-                        isLoading.value = false;
-                    }, (error) => { console.error("Lobby Load Error:", error); });
-                };
-
-                const createRoom = async () => {
-                    if(!newRoomName.value.trim()) { showMessage('請輸入組別名稱'); return; }
-                    const newId = 'room_' + Date.now() + '_' + generateId();
-                    const newRoomDoc = doc(db, 'artifacts', appId, 'public', 'data', 'poll_rooms', newId);
+            data() {
+                return {
+                    isLoading: true,
+                    currentView: 'lobby',
+                    pollId: '',
+                    pollsList: [],
+                    newPollName: '',
                     
-                    const initialData = {
-                        name: newRoomName.value.trim(),
-                        createdAt: Date.now(),
-                        settings: {
-                            question: '請針對以下項目，選出您認為最重要的前三名：',
-                            maxVotes: 3,
-                            isOpen: false,
-                            options: [
-                                { id: generateId(), text: '選項一' },
-                                { id: generateId(), text: '選項二' },
-                                { id: generateId(), text: '選項三' },
-                                { id: generateId(), text: '選項四' },
-                            ]
-                        }
-                    };
-                    await setDoc(newRoomDoc, initialData);
-                    newRoomName.value = '';
-                    showMessage('✅ 投票組別建立成功！');
-                };
+                    toastMsg: '',
+                    confirmModal: { show: false, message: '', action: null },
 
-                const deleteRoom = (id) => {
-                    askConfirm('確定要刪除這個組別嗎？設定與投票紀錄將無法恢復。', async () => {
-                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'poll_rooms', id));
-                        showMessage('🗑️ 組別已刪除');
+                    studentId: '',
+                    pollSettings: { question: '', options: [], maxVotes: 3, isActive: false },
+                    localSettings: { question: '', options: [], maxVotes: 3 }, // 講師暫存編輯區
+                    votes: {}, // 格式: { studentId: [optIdx1, optIdx2] }
+                    
+                    mySelections: [], // 學員當前的選擇陣列 (存索引值)
+                }
+            },
+            computed: {
+                rankedResults() {
+                    if (!this.pollSettings.options || this.pollSettings.options.length === 0) return [];
+                    
+                    // 初始化計分板
+                    let scores = this.pollSettings.options.map(() => 0);
+                    
+                    // 根據每位學員的投票陣列計算加權分數
+                    Object.values(this.votes).forEach(studentVotes => {
+                        studentVotes.forEach((optIndex, rank) => {
+                            // 檢查防呆：如果選項索引超過目前選項長度，或者排名超過最大票數則忽略
+                            if (optIndex < scores.length && rank < this.pollSettings.maxVotes) {
+                                // 加權：第1名得 maxVotes 分，第2名得 maxVotes - 1 分...
+                                scores[optIndex] += (this.pollSettings.maxVotes - rank);
+                            }
+                        });
                     });
-                };
 
-                const getRoomLink = (id, role) => {
+                    // 整理並排序
+                    return this.pollSettings.options.map((optText, idx) => ({
+                        text: optText,
+                        score: scores[idx],
+                        originalIndex: idx
+                    })).sort((a, b) => b.score - a.score);
+                },
+                maxScore() {
+                    if (this.rankedResults.length === 0) return 1;
+                    return Math.max(1, this.rankedResults[0].score); // 作為進度條的最大分母
+                }
+            },
+            mounted() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const pollParam = urlParams.get('poll');
+                const roleParam = urlParams.get('role');
+
+                if (!pollParam) {
+                    this.currentView = 'lobby';
+                    db.ref('pollsList').on('value', snap => {
+                        const val = snap.val();
+                        this.pollsList = val ? Object.keys(val).map(key => ({ id: key, ...val[key] })) : [];
+                        this.pollsList.sort((a, b) => b.createdAt - a.createdAt);
+                        this.isLoading = false;
+                    });
+                } else {
+                    this.pollId = pollParam;
+                    this.currentView = roleParam === 'teacher' ? 'teacher' : 'student';
+
+                    if (this.currentView === 'student') {
+                        let storedId = localStorage.getItem('class_voter_id');
+                        if (!storedId) {
+                            storedId = 'voter_' + Math.random().toString(36).substr(2, 9);
+                            localStorage.setItem('class_voter_id', storedId);
+                        }
+                        this.studentId = storedId;
+                    }
+
+                    // 監聽房間設定
+                    db.ref(`polls/${this.pollId}/settings`).on('value', snapshot => {
+                        const val = snapshot.val();
+                        if (val) {
+                            this.pollSettings = { ...val, options: val.options || [] };
+                            // 同步到講師的暫存編輯區 (僅在尚未編輯或初次載入時)
+                            if(this.currentView === 'teacher' && this.localSettings.options.length === 0) {
+                                this.localSettings = JSON.parse(JSON.stringify(this.pollSettings));
+                            }
+                        }
+                        this.isLoading = false;
+                    });
+
+                    // 監聽投票結果
+                    db.ref(`polls/${this.pollId}/votes`).on('value', snapshot => {
+                        this.votes = snapshot.val() || {};
+                        // 學員若已有投票紀錄，載入為當前狀態
+                        if (this.currentView === 'student' && this.votes[this.studentId]) {
+                            this.mySelections = [...this.votes[this.studentId]];
+                        }
+                    });
+                }
+            },
+            methods: {
+                showMessage(msg) {
+                    this.toastMsg = msg;
+                    setTimeout(() => { this.toastMsg = ''; }, 3000);
+                },
+                askConfirm(message, action) {
+                    this.confirmModal.message = message;
+                    this.confirmModal.action = action;
+                    this.confirmModal.show = true;
+                },
+                executeConfirm() {
+                    if(this.confirmModal.action) this.confirmModal.action();
+                    this.confirmModal.show = false;
+                    this.confirmModal.action = null;
+                },
+
+                // --- 大廳邏輯 ---
+                createPoll() {
+                    if(!this.newPollName.trim()) { this.showMessage('請輸入活動名稱'); return; }
+                    const ref = db.ref('pollsList').push();
+                    ref.set({ name: this.newPollName.trim(), createdAt: Date.now() });
+                    
+                    // 初始化為純邏輯框架，無範例資料
+                    db.ref(`polls/${ref.key}/settings`).set({
+                        title: this.newPollName.trim(),
+                        question: '',
+                        options: [],
+                        maxVotes: 3,
+                        isActive: false
+                    });
+                    this.newPollName = '';
+                    this.showMessage('✅ 投票建立成功！');
+                },
+                deletePoll(id) {
+                    this.askConfirm('確定要刪除這個投票活動？資料將無法復原！', () => {
+                        db.ref(`pollsList/${id}`).remove();
+                        db.ref(`polls/${id}`).remove();
+                        this.showMessage('🗑️ 已刪除');
+                    });
+                },
+                getLink(id, role) {
                     const url = new URL(window.location.href);
-                    url.searchParams.set('room', id);
+                    url.searchParams.set('poll', id);
                     if (role === 'teacher') url.searchParams.set('role', 'teacher');
                     else url.searchParams.delete('role');
                     return url.href;
-                };
+                },
+                copyLink(id, role) {
+                    const link = this.getLink(id, role);
+                    const tempInput = document.createElement("input");
+                    tempInput.value = link;
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(tempInput);
+                    this.showMessage('✅ 連結已複製到剪貼簿！');
+                },
 
-                const copyLink = (id, role) => {
-                    const link = getRoomLink(id, role);
-                    // 相容性處理 iframe 剪貼簿
-                    try {
-                        const tempInput = document.createElement("input");
-                        tempInput.value = link;
-                        document.body.appendChild(tempInput);
-                        tempInput.select();
-                        document.execCommand("copy");
-                        document.body.removeChild(tempInput);
-                        showMessage('✅ 學員連結已複製到剪貼簿！');
-                    } catch(e) {
-                        showMessage('複製失敗，請手動複製網址');
+                // --- 講師邏輯 ---
+                saveSettings() {
+                    // 過濾掉空白選項
+                    const cleanOptions = this.localSettings.options.filter(opt => opt.trim() !== '');
+                    this.localSettings.options = cleanOptions;
+                    
+                    db.ref(`polls/${this.pollId}/settings`).update({
+                        question: this.localSettings.question,
+                        options: this.localSettings.options,
+                        maxVotes: this.localSettings.maxVotes
+                    });
+                    this.showMessage('✅ 設定已儲存並同步給學員');
+                },
+                toggleActive(state) {
+                    if (state && (!this.pollSettings.options || this.pollSettings.options.length === 0)) {
+                        this.showMessage('⚠️ 請先新增至少一個選項再開放投票！');
+                        return;
                     }
-                };
-
-                // --- 資料庫操作：Room (Teacher & Student) ---
-                const loadRoom = (id) => {
-                    if (!user.value) return;
-                    
-                    // 1. 監聽房間設定
-                    const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'poll_rooms', id);
-                    unsubRoom = onSnapshot(roomDocRef, (docSnap) => {
-                        if (docSnap.exists()) {
-                            const data = docSnap.data();
-                            roomData.value = { id: docSnap.id, ...data };
-                            
-                            // 同步給編輯表單 (僅在首次或關閉狀態時強制覆蓋，避免打字被中斷)
-                            if (currentView.value === 'teacher' && !data.settings.isOpen) {
-                                // 淺拷貝避免直接修改 roomData
-                                editSettings.question = data.settings.question;
-                                editSettings.maxVotes = data.settings.maxVotes;
-                                // 深拷貝選項陣列
-                                editSettings.options = JSON.parse(JSON.stringify(data.settings.options || []));
-                            }
-
-                            // 學員端邏輯：檢查選項是否被刪除，清理已選清單
-                            if (currentView.value === 'student') {
-                                const validOptionIds = (data.settings.options || []).map(o => o.id);
-                                studentSelected.value = studentSelected.value.filter(id => validOptionIds.includes(id));
-                            }
-                        } else {
-                            showMessage('找不到該組別或已被刪除');
-                        }
-                        isLoading.value = false;
-                    }, (err) => console.error(err));
-
-                    // 2. 監聽投票結果 (獨立 Collection 以符合效能)
-                    const votesRef = collection(db, 'artifacts', appId, 'public', 'data', 'poll_votes_' + id);
-                    unsubVotes = onSnapshot(votesRef, (snapshot) => {
-                        const votes = {};
-                        snapshot.forEach(doc => {
-                            votes[doc.id] = doc.data();
-                            // 學員端判斷自己是否已投票
-                            if (currentView.value === 'student' && doc.id === user.value.uid) {
-                                hasVoted.value = true;
-                                // 只有在首次載入或沒有暫存編輯時才覆寫畫面
-                                if (studentSelected.value.length === 0) {
-                                    studentSelected.value = [...doc.data().rankedChoices];
-                                }
-                            }
-                        });
-                        votesData.value = votes;
-                    }, (err) => console.error(err));
-                };
-
-                // --- 講師端專用方法 ---
-                const addOption = () => { editSettings.options.push({ id: generateId(), text: '' }); };
-                const removeOption = (idx) => { editSettings.options.splice(idx, 1); };
-                
-                const saveSettings = async () => {
-                    // 基本驗證
-                    if (!editSettings.question.trim()) { showMessage('請輸入題目'); return; }
-                    const validOptions = editSettings.options.filter(o => o.text.trim());
-                    if (validOptions.length < 2) { showMessage('至少需要兩個有效選項'); return; }
-                    if (editSettings.maxVotes < 1 || editSettings.maxVotes > validOptions.length) {
-                        showMessage('可投票數設定不合理'); return;
-                    }
-
-                    const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'poll_rooms', roomId.value);
-                    await setDoc(roomDocRef, {
-                        ...roomData.value,
-                        settings: {
-                            question: editSettings.question,
-                            maxVotes: editSettings.maxVotes,
-                            isOpen: false, // 儲存時預設不開放
-                            options: validOptions
-                        }
-                    }, { merge: true });
-                    showMessage('✅ 設定已更新儲存');
-                };
-
-                const toggleVoting = async (openStatus) => {
-                    if (openStatus) await saveSettings(); // 開放前先存檔確保最新
-                    const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'poll_rooms', roomId.value);
-                    await setDoc(roomDocRef, { settings: { ...roomData.value.settings, isOpen: openStatus } }, { merge: true });
-                    showMessage(openStatus ? '🚀 投票已開放！' : '⏹️ 投票已關閉');
-                };
-
-                const clearVotes = () => {
-                    askConfirm('確定要清空所有人的投票紀錄嗎？（設定不受影響）', async () => {
-                        // Firebase Firestore 無法一次刪除 Collection，需逐筆刪除
-                        for (const voteId in votesData.value) {
-                            const voteDoc = doc(db, 'artifacts', appId, 'public', 'data', 'poll_votes_' + roomId.value, voteId);
-                            await deleteDoc(voteDoc);
-                        }
-                        if(currentView.value === 'student') {
-                            studentSelected.value = [];
-                            hasVoted.value = false;
-                        }
-                        showMessage('🗑️ 紀錄已清空');
+                    db.ref(`polls/${this.pollId}/settings/isActive`).set(state);
+                    this.showMessage(state ? '✅ 投票閘門已開啟' : '⏸️ 投票已暫停');
+                },
+                clearVotes() {
+                    this.askConfirm('確定清空所有人的投票紀錄？', () => {
+                        db.ref(`polls/${this.pollId}/votes`).remove();
+                        this.showMessage('🗑️ 票數已清空');
                     });
-                };
+                },
 
-                // 計算開票結果 (重點邏輯)
-                const votingResults = computed(() => {
-                    if (!roomData.value?.settings?.options) return [];
-                    
-                    const maxVotes = roomData.value.settings.maxVotes;
-                    const optionsMap = {};
-                    
-                    // 初始化計分板
-                    roomData.value.settings.options.forEach(opt => {
-                        optionsMap[opt.id] = { id: opt.id, text: opt.text, score: 0, details: {} };
-                        for(let i=1; i<=maxVotes; i++) optionsMap[opt.id].details[i] = 0;
-                    });
-
-                    // 結算所有票數
-                    Object.values(votesData.value).forEach(vote => {
-                        vote.rankedChoices.forEach((optId, index) => {
-                            if (optionsMap[optId]) {
-                                const rank = index + 1;
-                                const points = maxVotes - index; // 第1名最高分，依序遞減
-                                optionsMap[optId].score += points;
-                                optionsMap[optId].details[rank] += 1;
-                            }
-                        });
-                    });
-
-                    // 轉為陣列並按分數排序
-                    return Object.values(optionsMap).sort((a, b) => b.score - a.score);
-                });
-
-                const maxScore = computed(() => {
-                    if (votingResults.value.length === 0) return 0;
-                    return votingResults.value[0].score || 1; // 避免除以0
-                });
-
-                // --- 學員端專用方法 ---
-                const toggleStudentOption = (optId) => {
-                    const maxVotes = roomData.value.settings.maxVotes;
-                    const index = studentSelected.value.indexOf(optId);
-                    
-                    if (index > -1) {
-                        // 存在，則移除 (取消選取)
-                        studentSelected.value.splice(index, 1);
+                // --- 學員邏輯 ---
+                toggleSelection(index) {
+                    const pos = this.mySelections.indexOf(index);
+                    if (pos !== -1) {
+                        // 如果已選過，則移除，後面的名次會自動遞補往前
+                        this.mySelections.splice(pos, 1);
                     } else {
-                        // 不存在，判斷是否已達上限
-                        if (studentSelected.value.length >= maxVotes) {
-                            showMessage(`⚠️ 您最多只能選擇 ${maxVotes} 項！`);
+                        // 如果未選過，檢查是否達到上限
+                        if (this.mySelections.length < this.pollSettings.maxVotes) {
+                            this.mySelections.push(index);
                         } else {
-                            // 加入陣列末端 (成為下一個名次)
-                            studentSelected.value.push(optId);
+                            this.showMessage(`⚠️ 最多只能選擇 ${this.pollSettings.maxVotes} 項！若要更改請先點擊取消。`);
                         }
                     }
-                };
-
-                const submitVote = async () => {
-                    if (!user.value) return;
-                    if (studentSelected.value.length === 0) return;
-                    
-                    const voteDoc = doc(db, 'artifacts', appId, 'public', 'data', 'poll_votes_' + roomId.value, user.value.uid);
-                    await setDoc(voteDoc, {
-                        timestamp: Date.now(),
-                        rankedChoices: [...studentSelected.value]
-                    });
-                    
-                    hasVoted.value = true;
-                    showMessage('✅ 投票成功！您可以在時間內隨時修改。');
-                };
-
-                // --- 2. 生命週期與 Auth (遵循 Canvas 嚴格規範) ---
-                onMounted(async () => {
-                    // 初始化 Auth
-                    const initAuth = async () => {
-                        try {
-                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                                await signInWithCustomToken(auth, __initial_auth_token);
-                            } else {
-                                await signInAnonymously(auth);
-                            }
-                        } catch (err) {
-                            console.error("Auth init failed:", err);
-                            isLoading.value = false;
-                        }
-                    };
-                    await initAuth();
-                });
-
-                // 監聽 Auth 狀態並觸發資料載入
-                onAuthStateChanged(auth, (u) => {
-                    user.value = u;
-                    if (u) {
-                        initRoute();
-                    } else {
-                        isLoading.value = false;
+                },
+                submitVote() {
+                    if (this.mySelections.length === 0) {
+                        this.showMessage('請至少選擇一個選項'); return;
                     }
-                });
-
-                onUnmounted(() => {
-                    if (unsubRoom) unsubRoom();
-                    if (unsubVotes) unsubVotes();
-                });
-
-                return {
-                    isLoading, user, currentView, roomId, toastMsg, confirmModal, showMessage, executeConfirm, formatDate,
-                    // Lobby
-                    roomsList, newRoomName, createRoom, deleteRoom, getRoomLink, copyLink,
-                    // Teacher
-                    roomData, editSettings, votingResults, maxScore, votesData,
-                    addOption, removeOption, saveSettings, toggleVoting, clearVotes,
-                    // Student
-                    studentSelected, hasVoted, toggleStudentOption, submitVote
-                };
+                    db.ref(`polls/${this.pollId}/votes/${this.studentId}`).set(this.mySelections)
+                        .then(() => { this.showMessage('🎉 投票已成功送出！(可隨時調整重送)'); })
+                        .catch(err => { this.showMessage('❌ 送出失敗：' + err.message); });
+                }
             }
         }).mount('#app');
     </script>
