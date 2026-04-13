@@ -40,14 +40,27 @@
         .actions { display: flex; flex-direction: column; gap: 10px; }
         .actions .btn { margin: 0; width: 100%; text-align: center; box-sizing: border-box; }
 
-        /* --- 講師端設定區 --- */
-        .teacher-wrapper { padding: 20px; max-width: 1000px; margin: 0 auto; }
+        /* --- 講師端樣式 --- */
+        .teacher-wrapper { padding: 30px 20px; max-width: 1200px; margin: 0 auto; }
+        .presentation-board { background: white; border-radius: 16px; padding: 50px 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); min-height: 60vh;}
+        
+        .result-bar-container { background: #eee; border-radius: 8px; width: 100%; margin-top: 8px; overflow: hidden; position: relative;}
+        .result-bar { background: #4caf50; height: 100%; transition: width 0.5s ease-out; }
+        .result-score { position: absolute; right: 15px; top: 0; font-weight: bold; color: #333; }
+        
+        /* 浮動齒輪按鈕 */
+        .toolbar-trigger {
+            position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%;
+            background: rgba(0,0,0,0.6); color: white; display: flex; justify-content: center; align-items: center;
+            font-size: 1.8rem; cursor: pointer; z-index: 2000; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .toolbar-trigger:hover { background: rgba(0,0,0,0.9); transform: scale(1.1); }
+
+        /* 設定專用 Modal */
+        .settings-modal { width: 600px; max-width: 95%; max-height: 85vh; overflow-y: auto; text-align: left; }
         .config-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
         .config-row input { flex: 1; }
-        .result-bar-container { background: #eee; border-radius: 8px; height: 24px; width: 100%; margin-top: 8px; overflow: hidden; position: relative;}
-        .result-bar { background: #4caf50; height: 100%; transition: width 0.5s ease-out; }
-        .result-score { position: absolute; right: 10px; top: 0; line-height: 24px; font-size: 0.85rem; font-weight: bold; color: #333; }
-        
+
         /* --- 學員端樣式 --- */
         .student-wrapper { padding: 20px; max-width: 600px; margin: 0 auto; padding-bottom: 80px;}
         .option-btn {
@@ -72,9 +85,9 @@
         }
 
         /* --- 狀態與 UI 元件 --- */
-        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; margin-left: 10px;}
-        .status-on { background: #e8f5e9; color: #2e7d32; }
-        .status-off { background: #ffebee; color: #c62828; }
+        .status-badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 1rem; font-weight: bold; margin-right: 15px;}
+        .status-on { background: #e8f5e9; color: #2e7d32; border: 2px solid #c8e6c9;}
+        .status-off { background: #ffebee; color: #c62828; border: 2px solid #ffcdd2;}
 
         .toast {
             position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -84,7 +97,7 @@
         @keyframes fadeInOut { 0% { opacity: 0; bottom: 0px; } 10% { opacity: 1; bottom: 20px; } 90% { opacity: 1; bottom: 20px; } 100% { opacity: 0; bottom: 30px; } }
         
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 3000; display: flex; justify-content: center; align-items: center; }
-        .modal-box { background: white; padding: 25px; border-radius: 10px; width: 400px; max-width: 90%; text-align: center; }
+        .modal-box { background: white; padding: 30px; border-radius: 12px; width: 400px; max-width: 90%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
@@ -96,7 +109,7 @@
 
         <div v-if="confirmModal.show" class="modal-overlay">
             <div class="modal-box">
-                <h3 style="margin-top: 0; color: #d32f2f;">⚠️ 確認操作</h3>
+                <h3 style="margin-top: 0; color: #d32f2f; font-size: 1.5rem;">⚠️ 確認操作</h3>
                 <p style="margin-bottom: 25px; font-size: 1.1rem; color: #555;">{{ confirmModal.message }}</p>
                 <div style="display: flex; justify-content: center; gap: 15px;">
                     <button class="btn btn-secondary" @click="confirmModal.show = false">取消</button>
@@ -111,7 +124,7 @@
                 
                 <div class="card create-box">
                     <input type="text" v-model="newPollName" placeholder="輸入新投票活動名稱..." @keydown.enter="createPoll">
-                    <button class="btn btn-success" @click="createPoll">＋ 建立新投票</button>
+                    <button class="btn btn-success" @click="createPoll" style="font-size: 1.1rem; padding: 12px 24px;">＋ 建立新投票</button>
                 </div>
 
                 <div class="grid">
@@ -119,81 +132,86 @@
                         <h3>{{ poll.name }}</h3>
                         <div class="meta">建立於: {{ new Date(poll.createdAt).toLocaleString() }}</div>
                         <div class="actions">
-                            <a :href="getLink(poll.id, 'teacher')" target="_blank" class="btn btn-primary" style="text-decoration:none;">👨‍🏫 開啟講師後台</a>
+                            <a :href="getLink(poll.id, 'teacher')" target="_blank" class="btn btn-primary" style="text-decoration:none;">👨‍🏫 開啟講師投影畫面</a>
                             <button class="btn btn-outline" @click="copyLink(poll.id, 'student')">🔗 複製學員連結</button>
                             <button class="btn btn-danger" @click="deletePoll(poll.id)">🗑️ 刪除活動</button>
                         </div>
                     </div>
-                    <div v-if="!isLoading && pollsList.length === 0" style="grid-column: 1 / -1; text-align: center; color: #999; padding: 40px;">
-                        <h2 style="margin:0;">目前無投票活動</h2><p>請建立您的第一個投票框架。</p>
+                    <div v-if="!isLoading && pollsList.length === 0" style="grid-column: 1 / -1; text-align: center; color: #999; padding: 60px;">
+                        <h2 style="margin:0;">目前無投票活動</h2><p style="margin-top: 10px;">請從上方建立您的第一個投票框架。</p>
                     </div>
                 </div>
             </div>
         </div>
 
         <div v-else-if="currentView === 'teacher'" class="teacher-wrapper">
-            <h2 style="margin-top:0; display:flex; align-items:center; justify-content: space-between;">
-                <span>後台控制：{{ pollSettings.title || '未命名投票' }}</span>
-                <span class="status-badge" :class="pollSettings.isActive ? 'status-on' : 'status-off'">
-                    {{ pollSettings.isActive ? '🟢 投票進行中' : '🔴 投票已暫停' }}
-                </span>
-            </h2>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin:0; color: #555; font-size: 1.5rem;">講師投影儀表板</h2>
+                <div style="display: flex; align-items: center;">
+                    <span class="status-badge" :class="pollSettings.isActive ? 'status-on' : 'status-off'">
+                        {{ pollSettings.isActive ? '🟢 投票開放中' : '🔴 投票已關閉' }}
+                    </span>
+                    <button v-if="!pollSettings.isActive" class="btn btn-success" @click="toggleActive(true)">▶️ 開放投票</button>
+                    <button v-else class="btn btn-danger" @click="toggleActive(false)">⏸️ 停止投票</button>
+                    <div style="width: 1px; height: 30px; background: #ccc; margin: 0 15px;"></div>
+                    <button class="btn btn-secondary" @click="clearVotes">🗑️ 清空數據</button>
+                </div>
+            </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div class="card">
-                    <h3 style="margin-top:0; border-bottom: 2px solid #eee; padding-bottom: 10px;">⚙️ 題目設計</h3>
+            <div class="presentation-board">
+                <h1 style="text-align: center; margin-top: 0; margin-bottom: 10px; color: #1976d2; font-size: 2.2rem; line-height: 1.4;">
+                    {{ pollSettings.question || '等待設定題目...' }}
+                </h1>
+                <p style="text-align: center; color: #757575; margin-bottom: 40px; font-size: 1.2rem; font-weight: bold;">
+                    參與人數：{{ Object.keys(votes).length }} 人
+                </p>
+
+                <div v-if="rankedResults.length > 0" style="max-width: 900px; margin: 0 auto;">
+                    <div v-for="(res, idx) in rankedResults" :key="idx" style="margin-bottom: 25px;">
+                        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.4rem; margin-bottom: 8px; color: #333;">
+                            <span>第 {{ idx + 1 }} 名：{{ res.text || '(空白選項)' }}</span>
+                        </div>
+                        <div class="result-bar-container" style="height: 36px;">
+                            <div class="result-bar" :style="{ width: (maxScore > 0 ? (res.score / maxScore * 100) : 0) + '%' }"></div>
+                            <span class="result-score" style="line-height: 36px; font-size: 1.1rem;">積分: {{ res.score }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div v-else style="text-align: center; color: #aaa; padding: 60px; font-size: 1.3rem;">
+                    尚未建立選項，或無投票資料。<br>請點擊右下角「齒輪」圖示進行課程設定。
+                </div>
+            </div>
+
+            <div class="toolbar-trigger" @click="openSettingsModal" title="開啟題目設定">⚙️</div>
+
+            <div v-if="showSettingsModal" class="modal-overlay">
+                <div class="modal-box settings-modal">
+                    <h2 style="margin-top:0; border-bottom: 2px solid #eee; padding-bottom: 15px; color: #333;">⚙️ 題目與選項設計</h2>
                     
-                    <label style="font-weight:bold; display:block; margin-bottom:5px;">主軸問題：</label>
-                    <input type="text" v-model="localSettings.question" placeholder="例如：針對本次專案，請選出您認為最重要的三個成功關鍵..." style="width:100%; margin-bottom: 15px;">
+                    <label style="font-weight:bold; display:block; margin-bottom:8px; font-size: 1.1rem;">主軸問題：</label>
+                    <input type="text" v-model="localSettings.question" placeholder="例如：針對本次專案，請選出您認為最重要的三個成功關鍵..." style="width:100%; margin-bottom: 20px; font-size: 1.1rem;">
                     
-                    <label style="font-weight:bold; display:block; margin-bottom:5px;">每人可投幾票 (排序)：</label>
-                    <select v-model.number="localSettings.maxVotes" style="width:100%; margin-bottom: 20px;">
+                    <label style="font-weight:bold; display:block; margin-bottom:8px; font-size: 1.1rem;">每人可投幾票 (排序)：</label>
+                    <select v-model.number="localSettings.maxVotes" style="width:100%; margin-bottom: 25px; font-size: 1.1rem;">
                         <option v-for="n in 10" :key="n" :value="n">選出前 {{ n }} 名</option>
                     </select>
 
-                    <label style="font-weight:bold; display:block; margin-bottom:5px;">候選選項：</label>
-                    <div v-for="(opt, idx) in localSettings.options" :key="idx" class="config-row">
-                        <span style="font-weight:bold; color:#757575;">{{ idx + 1 }}.</span>
-                        <input type="text" v-model="localSettings.options[idx]" placeholder="輸入選項內容">
-                        <button class="btn btn-danger" style="margin:0;" @click="localSettings.options.splice(idx, 1)">✕</button>
-                    </div>
-                    <button class="btn btn-outline" style="width:100%; margin-top:10px;" @click="localSettings.options.push('')">＋ 新增選項</button>
-
-                    <hr style="margin: 25px 0; border: 0; border-top: 1px dashed #ccc;">
-                    <div style="display: flex; gap: 10px;">
-                        <button class="btn btn-primary" style="flex: 1;" @click="saveSettings">💾 儲存並更新給學員</button>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h3 style="margin-top:0; border-bottom: 2px solid #eee; padding-bottom: 10px;">📊 即時結果區</h3>
-                    
-                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                        <button v-if="!pollSettings.isActive" class="btn btn-success" style="flex:1;" @click="toggleActive(true)">▶️ 開放投票</button>
-                        <button v-else class="btn btn-danger" style="flex:1;" @click="toggleActive(false)">⏸️ 停止投票</button>
-                        <button class="btn btn-secondary" @click="clearVotes">🗑️ 清空所有票數</button>
-                    </div>
-
-                    <div style="margin-bottom: 15px; color: #555; font-weight: bold;">
-                        目前已投票人數：{{ Object.keys(votes).length }} 人
-                    </div>
-
-                    <div v-if="rankedResults.length > 0">
-                        <div v-for="(res, idx) in rankedResults" :key="idx" style="margin-bottom: 15px;">
-                            <div style="display: flex; justify-content: space-between; font-weight: bold;">
-                                <span>第 {{ idx + 1 }} 名：{{ res.text || '(空白選項)' }}</span>
-                            </div>
-                            <div class="result-bar-container">
-                                <div class="result-bar" :style="{ width: (res.score / maxScore * 100) + '%' }"></div>
-                                <span class="result-score">積分: {{ res.score }}</span>
+                    <label style="font-weight:bold; display:block; margin-bottom:8px; font-size: 1.1rem;">候選選項：</label>
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+                        <div style="max-height: 30vh; overflow-y: auto; padding-right: 10px;">
+                            <div v-for="(opt, idx) in localSettings.options" :key="idx" class="config-row">
+                                <span style="font-weight:bold; color:#757575; min-width: 25px; font-size: 1.1rem;">{{ idx + 1 }}.</span>
+                                <input type="text" v-model="localSettings.options[idx]" placeholder="輸入選項內容">
+                                <button class="btn btn-danger" style="margin:0; padding: 10px 15px;" @click="localSettings.options.splice(idx, 1)">✕</button>
                             </div>
                         </div>
-                        <p style="font-size: 0.85rem; color: #888; margin-top: 20px;">
-                            * 計分方式：選出前 {{ pollSettings.maxVotes }} 名。第 1 名得 {{ pollSettings.maxVotes }} 分，依序遞減。
-                        </p>
+                        <button class="btn btn-outline" style="width:100%; margin-top:15px;" @click="localSettings.options.push('')">＋ 新增選項</button>
                     </div>
-                    <div v-else style="text-align: center; color: #999; padding: 20px;">
-                        尚無投票資料，或請先建立選項。
+
+                    <div style="display: flex; gap: 15px; margin-top: 30px; justify-content: flex-end;">
+                        <button class="btn btn-secondary" @click="showSettingsModal = false" style="padding: 12px 24px;">取消</button>
+                        <button class="btn btn-primary" @click="saveSettings" style="padding: 12px 24px;">💾 儲存並更新</button>
                     </div>
                 </div>
             </div>
@@ -226,7 +244,7 @@
                 </div>
 
                 <div class="bottom-action">
-                    <div>
+                    <div style="font-size: 1.1rem;">
                         已選擇：<strong>{{ mySelections.length }}</strong> / {{ pollSettings.maxVotes }} 
                     </div>
                     <button class="btn btn-primary" :disabled="mySelections.length === 0" @click="submitVote" style="margin:0; font-size:1.1rem; padding: 12px 24px;">
@@ -267,31 +285,28 @@
 
                     studentId: '',
                     pollSettings: { question: '', options: [], maxVotes: 3, isActive: false },
-                    localSettings: { question: '', options: [], maxVotes: 3 }, // 講師暫存編輯區
-                    votes: {}, // 格式: { studentId: [optIdx1, optIdx2] }
                     
-                    mySelections: [], // 學員當前的選擇陣列 (存索引值)
+                    showSettingsModal: false,
+                    localSettings: { question: '', options: [], maxVotes: 3 }, 
+                    
+                    votes: {}, 
+                    mySelections: [],
                 }
             },
             computed: {
                 rankedResults() {
                     if (!this.pollSettings.options || this.pollSettings.options.length === 0) return [];
                     
-                    // 初始化計分板
                     let scores = this.pollSettings.options.map(() => 0);
                     
-                    // 根據每位學員的投票陣列計算加權分數
                     Object.values(this.votes).forEach(studentVotes => {
                         studentVotes.forEach((optIndex, rank) => {
-                            // 檢查防呆：如果選項索引超過目前選項長度，或者排名超過最大票數則忽略
                             if (optIndex < scores.length && rank < this.pollSettings.maxVotes) {
-                                // 加權：第1名得 maxVotes 分，第2名得 maxVotes - 1 分...
                                 scores[optIndex] += (this.pollSettings.maxVotes - rank);
                             }
                         });
                     });
 
-                    // 整理並排序
                     return this.pollSettings.options.map((optText, idx) => ({
                         text: optText,
                         score: scores[idx],
@@ -300,7 +315,7 @@
                 },
                 maxScore() {
                     if (this.rankedResults.length === 0) return 1;
-                    return Math.max(1, this.rankedResults[0].score); // 作為進度條的最大分母
+                    return Math.max(1, this.rankedResults[0].score);
                 }
             },
             mounted() {
@@ -329,23 +344,16 @@
                         this.studentId = storedId;
                     }
 
-                    // 監聽房間設定
                     db.ref(`polls/${this.pollId}/settings`).on('value', snapshot => {
                         const val = snapshot.val();
                         if (val) {
                             this.pollSettings = { ...val, options: val.options || [] };
-                            // 同步到講師的暫存編輯區 (僅在尚未編輯或初次載入時)
-                            if(this.currentView === 'teacher' && this.localSettings.options.length === 0) {
-                                this.localSettings = JSON.parse(JSON.stringify(this.pollSettings));
-                            }
                         }
                         this.isLoading = false;
                     });
 
-                    // 監聽投票結果
                     db.ref(`polls/${this.pollId}/votes`).on('value', snapshot => {
                         this.votes = snapshot.val() || {};
-                        // 學員若已有投票紀錄，載入為當前狀態
                         if (this.currentView === 'student' && this.votes[this.studentId]) {
                             this.mySelections = [...this.votes[this.studentId]];
                         }
@@ -368,13 +376,11 @@
                     this.confirmModal.action = null;
                 },
 
-                // --- 大廳邏輯 ---
                 createPoll() {
                     if(!this.newPollName.trim()) { this.showMessage('請輸入活動名稱'); return; }
                     const ref = db.ref('pollsList').push();
                     ref.set({ name: this.newPollName.trim(), createdAt: Date.now() });
                     
-                    // 初始化為純邏輯框架，無範例資料
                     db.ref(`polls/${ref.key}/settings`).set({
                         title: this.newPollName.trim(),
                         question: '',
@@ -410,9 +416,12 @@
                     this.showMessage('✅ 連結已複製到剪貼簿！');
                 },
 
-                // --- 講師邏輯 ---
+                openSettingsModal() {
+                    // 打開前，先將目前線上的設定拷貝到暫存區
+                    this.localSettings = JSON.parse(JSON.stringify(this.pollSettings));
+                    this.showSettingsModal = true;
+                },
                 saveSettings() {
-                    // 過濾掉空白選項
                     const cleanOptions = this.localSettings.options.filter(opt => opt.trim() !== '');
                     this.localSettings.options = cleanOptions;
                     
@@ -421,6 +430,7 @@
                         options: this.localSettings.options,
                         maxVotes: this.localSettings.maxVotes
                     });
+                    this.showSettingsModal = false;
                     this.showMessage('✅ 設定已儲存並同步給學員');
                 },
                 toggleActive(state) {
@@ -438,14 +448,11 @@
                     });
                 },
 
-                // --- 學員邏輯 ---
                 toggleSelection(index) {
                     const pos = this.mySelections.indexOf(index);
                     if (pos !== -1) {
-                        // 如果已選過，則移除，後面的名次會自動遞補往前
                         this.mySelections.splice(pos, 1);
                     } else {
-                        // 如果未選過，檢查是否達到上限
                         if (this.mySelections.length < this.pollSettings.maxVotes) {
                             this.mySelections.push(index);
                         } else {
