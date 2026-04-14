@@ -62,11 +62,11 @@
         .config-row input { flex: 1; }
 
         /* --- 學員端樣式 --- */
-        .student-wrapper { padding: 20px; max-width: 600px; margin: 0 auto; padding-bottom: 80px;}
+        .student-wrapper { padding: 20px; max-width: 600px; margin: 0 auto; padding-bottom: 80px; box-sizing: border-box; }
         .option-btn {
             display: block; width: 100%; text-align: left; background: white; border: 2px solid #e0e0e0;
             padding: 15px 20px; margin-bottom: 15px; border-radius: 10px; font-size: 1.1rem;
-            cursor: pointer; transition: 0.2s; position: relative; color: #333;
+            cursor: pointer; transition: 0.2s; position: relative; color: #333; box-sizing: border-box;
         }
         .option-btn:hover { border-color: #bbdefb; background: #f8fbff; }
         .option-btn.selected { border-color: #1976d2; background: #e3f2fd; box-shadow: 0 4px 10px rgba(25,118,210,0.15); }
@@ -227,8 +227,7 @@
                 <div class="card" style="margin-bottom: 20px; border-left: 6px solid #1976d2;">
                     <h2 style="margin: 0 0 10px 0; color: #333; line-height: 1.4;">{{ pollSettings.question || '請針對下方選項進行排序：' }}</h2>
                     <p style="margin: 0; color: #e65100; font-weight: bold;">
-                        📌 請點選出前 {{ pollSettings.maxVotes }} 名。先點選的為第 1 名。若要修改，可再次點擊選項取消。<br>
-                        <span style="color:#4caf50;"></span>
+                        📌 請選出前 {{ pollSettings.maxVotes }} 名。先點選的為第 1 名。若要修改，可再次點擊取消。
                     </p>
                 </div>
 
