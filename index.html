@@ -81,7 +81,7 @@
         .bottom-action {
             position: fixed; bottom: 0; left: 0; right: 0; background: white;
             padding: 15px 20px; box-shadow: 0 -2px 15px rgba(0,0,0,0.1);
-            display: flex; justify-content: space-between; align-items: center; z-index: 100;
+            display: flex; justify-content: center; align-items: center; z-index: 100;
         }
 
         /* --- 狀態與 UI 元件 --- */
@@ -227,7 +227,8 @@
                 <div class="card" style="margin-bottom: 20px; border-left: 6px solid #1976d2;">
                     <h2 style="margin: 0 0 10px 0; color: #333; line-height: 1.4;">{{ pollSettings.question || '請針對下方選項進行排序：' }}</h2>
                     <p style="margin: 0; color: #e65100; font-weight: bold;">
-                        📌 請點選出前 {{ pollSettings.maxVotes }} 名。先點選的為第 1 名。若要修改，可再次點擊選項取消。
+                        📌 請點選出前 {{ pollSettings.maxVotes }} 名。先點選的為第 1 名。若要修改，可再次點擊選項取消。<br>
+                        <span style="color:#4caf50;"></span>
                     </p>
                 </div>
 
@@ -244,12 +245,10 @@
                 </div>
 
                 <div class="bottom-action">
-                    <div style="font-size: 1.1rem;">
-                        已選擇：<strong>{{ mySelections.length }}</strong> / {{ pollSettings.maxVotes }} 
+                    <div style="font-size: 1.2rem; color: #333; font-weight: bold;">
+                        已選擇：<span style="color:#1976d2; font-size:1.4rem;">{{ mySelections.length }}</span> / {{ pollSettings.maxVotes }} 
+                        <span style="font-size: 1rem; color: #4caf50; margin-left: 10px; font-weight: normal;">✔️ 進度已即時同步</span>
                     </div>
-                    <button class="btn btn-primary" :disabled="mySelections.length === 0" @click="submitVote" style="margin:0; font-size:1.1rem; padding: 12px 24px;">
-                        📤 確認送出
-                    </button>
                 </div>
             </div>
         </div>
@@ -257,7 +256,6 @@
 
     <script>
         const { createApp } = Vue;
-        // 共用您的 Firebase 設定
         const firebaseConfig = {
             apiKey: "AIzaSyDUPGhkiJgxeYDYHqEaXCYvKh2vdTGqypw",
             authDomain: "class-discussion-01.firebaseapp.com",
@@ -299,6 +297,8 @@
                     
                     let scores = this.pollSettings.options.map(() => 0);
                     
+                    // 這裡的計分邏輯會根據資料庫即時回傳的 this.votes 完全重新計算
+                    // 所以學員一旦取消選項，該選項就不在學員陣列內，也就自然不會被加到分數中。
                     Object.values(this.votes).forEach(studentVotes => {
                         studentVotes.forEach((optIndex, rank) => {
                             if (optIndex < scores.length && rank < this.pollSettings.maxVotes) {
@@ -417,7 +417,6 @@
                 },
 
                 openSettingsModal() {
-                    // 打開前，先將目前線上的設定拷貝到暫存區
                     this.localSettings = JSON.parse(JSON.stringify(this.pollSettings));
                     this.showSettingsModal = true;
                 },
@@ -448,25 +447,38 @@
                     });
                 },
 
+                // 核心修改點：點擊選項後立刻更新到 Firebase
                 toggleSelection(index) {
                     const pos = this.mySelections.indexOf(index);
                     if (pos !== -1) {
+                        // 取消選擇 (會將該項目移出陣列，分數自然就會在重新計算時被扣除)
                         this.mySelections.splice(pos, 1);
                     } else {
+                        // 新增選擇
                         if (this.mySelections.length < this.pollSettings.maxVotes) {
                             this.mySelections.push(index);
                         } else {
                             this.showMessage(`⚠️ 最多只能選擇 ${this.pollSettings.maxVotes} 項！若要更改請先點擊取消。`);
+                            return; // 這裡不繼續往下存檔
                         }
                     }
+                    
+                    // 修改完成後，立刻發送至 Firebase 存檔
+                    this.autoSaveVote();
                 },
-                submitVote() {
+                
+                // 自動存檔邏輯
+                autoSaveVote() {
                     if (this.mySelections.length === 0) {
-                        this.showMessage('請至少選擇一個選項'); return;
+                        // 如果學員取消了所有選項 (陣列為空)，直接移除該學員的紀錄
+                        // 這能徹底確保 Firebase 資料庫不會殘留空陣列導致無法預期的計分錯誤
+                        db.ref(`polls/${this.pollId}/votes/${this.studentId}`).remove()
+                            .catch(err => { this.showMessage('❌ 同步失敗：' + err.message); });
+                    } else {
+                        // 否則，將當下最新的選擇陣列直接覆蓋寫入
+                        db.ref(`polls/${this.pollId}/votes/${this.studentId}`).set(this.mySelections)
+                            .catch(err => { this.showMessage('❌ 同步失敗：' + err.message); });
                     }
-                    db.ref(`polls/${this.pollId}/votes/${this.studentId}`).set(this.mySelections)
-                        .then(() => { this.showMessage('🎉 投票已成功送出！(可隨時調整重送)'); })
-                        .catch(err => { this.showMessage('❌ 送出失敗：' + err.message); });
                 }
             }
         }).mount('#app');
