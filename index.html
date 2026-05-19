@@ -35,7 +35,7 @@
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
         .item-card { border-top: 5px solid #1976d2; display: flex; flex-direction: column; transition: 0.3s; }
         .item-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
-        .item-card h3 { margin: 0 0 10px 0; color: #333; font-size: 1.4rem; }
+        .item-card h3 { margin: 0 0 10px 0; color: #333; font-size: 1.4rem; line-height: 1.3; }
         .meta { color: #888; font-size: 0.9rem; margin-bottom: 25px; flex: 1; }
         .actions { display: flex; flex-direction: column; gap: 10px; }
         .actions .btn { margin: 0; width: 100%; text-align: center; box-sizing: border-box; }
@@ -118,7 +118,27 @@
             </div>
         </div>
 
-        <div v-if="currentView === 'lobby'" class="lobby-wrapper">
+        <div v-if="renameModal.show" class="modal-overlay">
+            <div class="modal-box">
+                <h3 style="margin-top: 0; color: #333; font-size: 1.5rem;">✏️ 重新命名活動</h3>
+                <input type="text" v-model="renameModal.newName" placeholder="請輸入新名稱..." @keydown.enter="executeRename" style="width: 100%; margin-bottom: 25px; font-size: 1.1rem;">
+                <div style="display: flex; justify-content: center; gap: 15px;">
+                    <button class="btn btn-secondary" @click="renameModal.show = false">取消</button>
+                    <button class="btn btn-primary" @click="executeRename">儲存</button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="currentView === 'login'" class="lobby-wrapper" style="display: flex; justify-content: center; align-items: center;">
+            <div class="card" style="width: 400px; max-width: 90%; text-align: center;">
+                <h2 style="color: #333; margin-top: 0; margin-bottom: 10px;">🔒 系統登入</h2>
+                <p style="color: #666; margin-bottom: 25px;">請輸入管理密碼以進入投票管理大廳</p>
+                <input type="password" v-model="loginPassword" placeholder="輸入密碼..." @keydown.enter="login" style="width: 100%; margin-bottom: 20px; text-align: center; font-size: 1.2rem; letter-spacing: 2px;">
+                <button class="btn btn-primary" @click="login" style="width: 100%; font-size: 1.1rem; padding: 12px;">登入系統</button>
+            </div>
+        </div>
+
+        <div v-else-if="currentView === 'lobby'" class="lobby-wrapper">
             <div class="lobby-container">
                 <div class="lobby-header">📊 結構化排序投票系統</div>
                 
@@ -134,6 +154,12 @@
                         <div class="actions">
                             <a :href="getLink(poll.id, 'teacher')" target="_blank" class="btn btn-primary" style="text-decoration:none;">👨‍🏫 開啟講師投影畫面</a>
                             <button class="btn btn-outline" @click="copyLink(poll.id, 'student')">🔗 複製學員連結</button>
+                            
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn btn-secondary" @click="openRename(poll)" style="flex: 1; padding: 10px 5px; font-size: 0.95rem;">✏️ 重新命名</button>
+                                <button class="btn btn-success" @click="duplicatePoll(poll)" style="flex: 1; padding: 10px 5px; font-size: 0.95rem; background-color: #43a047;">📄 複製活動</button>
+                            </div>
+
                             <button class="btn btn-danger" @click="deletePoll(poll.id)">🗑️ 刪除活動</button>
                         </div>
                     </div>
@@ -272,13 +298,18 @@
             data() {
                 return {
                     isLoading: true,
-                    currentView: 'lobby',
+                    currentView: 'login', // 預設導向登入
+                    loginPassword: '',    // 登入密碼狀態
+                    
                     pollId: '',
                     pollsList: [],
                     newPollName: '',
                     
                     toastMsg: '',
                     confirmModal: { show: false, message: '', action: null },
+                    
+                    // 重新命名用的 Modal 狀態
+                    renameModal: { show: false, id: '', newName: '' },
 
                     studentId: '',
                     pollSettings: { question: '', options: [], maxVotes: 3, isActive: false },
@@ -296,8 +327,6 @@
                     
                     let scores = this.pollSettings.options.map(() => 0);
                     
-                    // 這裡的計分邏輯會根據資料庫即時回傳的 this.votes 完全重新計算
-                    // 所以學員一旦取消選項，該選項就不在學員陣列內，也就自然不會被加到分數中。
                     Object.values(this.votes).forEach(studentVotes => {
                         studentVotes.forEach((optIndex, rank) => {
                             if (optIndex < scores.length && rank < this.pollSettings.maxVotes) {
@@ -323,13 +352,9 @@
                 const roleParam = urlParams.get('role');
 
                 if (!pollParam) {
-                    this.currentView = 'lobby';
-                    db.ref('pollsList').on('value', snap => {
-                        const val = snap.val();
-                        this.pollsList = val ? Object.keys(val).map(key => ({ id: key, ...val[key] })) : [];
-                        this.pollsList.sort((a, b) => b.createdAt - a.createdAt);
-                        this.isLoading = false;
-                    });
+                    // 若無指定參數，則留在登入畫面，關閉 Loading
+                    this.currentView = 'login';
+                    this.isLoading = false;
                 } else {
                     this.pollId = pollParam;
                     this.currentView = roleParam === 'teacher' ? 'teacher' : 'student';
@@ -360,6 +385,24 @@
                 }
             },
             methods: {
+                // --- 登入功能 ---
+                login() {
+                    if (this.loginPassword === '20150117') {
+                        this.isLoading = true;
+                        this.currentView = 'lobby';
+                        // 登入成功後再讀取大廳資料
+                        db.ref('pollsList').on('value', snap => {
+                            const val = snap.val();
+                            this.pollsList = val ? Object.keys(val).map(key => ({ id: key, ...val[key] })) : [];
+                            this.pollsList.sort((a, b) => b.createdAt - a.createdAt);
+                            this.isLoading = false;
+                        });
+                    } else {
+                        this.showMessage('❌ 密碼錯誤，請重新輸入！');
+                        this.loginPassword = '';
+                    }
+                },
+
                 showMessage(msg) {
                     this.toastMsg = msg;
                     setTimeout(() => { this.toastMsg = ''; }, 3000);
@@ -390,6 +433,58 @@
                     this.newPollName = '';
                     this.showMessage('✅ 投票建立成功！');
                 },
+
+                // --- 重新命名功能 ---
+                openRename(poll) {
+                    this.renameModal.id = poll.id;
+                    this.renameModal.newName = poll.name;
+                    this.renameModal.show = true;
+                },
+                executeRename() {
+                    const newTitle = this.renameModal.newName.trim();
+                    if (!newTitle) {
+                        this.showMessage('⚠️ 名稱不可為空');
+                        return;
+                    }
+                    const targetId = this.renameModal.id;
+                    // 同步更新大廳列表名稱，以及內部設定的 title
+                    db.ref(`pollsList/${targetId}`).update({ name: newTitle });
+                    db.ref(`polls/${targetId}/settings`).update({ title: newTitle });
+                    
+                    this.renameModal.show = false;
+                    this.showMessage('✅ 重新命名成功！');
+                },
+
+                // --- 複製活動功能 ---
+                duplicatePoll(poll) {
+                    this.askConfirm(`確定要複製活動「${poll.name}」嗎？將一併複製題目與選項設定。`, () => {
+                        this.isLoading = true;
+                        
+                        // 1. 抓取原始活動的設定檔
+                        db.ref(`polls/${poll.id}/settings`).once('value').then(snapshot => {
+                            const originalSettings = snapshot.val();
+                            const duplicateName = poll.name + ' (複製)';
+                            
+                            // 2. 建立新的 List 節點
+                            const ref = db.ref('pollsList').push();
+                            ref.set({ name: duplicateName, createdAt: Date.now() });
+                            
+                            // 3. 將原設定完整寫入新活動，並強制關閉投票閘門，更新 Title
+                            db.ref(`polls/${ref.key}/settings`).set({
+                                ...originalSettings,
+                                title: duplicateName,
+                                isActive: false // 複製過去的活動預設必須關閉，以免直接開放入場
+                            });
+                            
+                            this.isLoading = false;
+                            this.showMessage('✅ 活動已成功複製！');
+                        }).catch(error => {
+                            this.isLoading = false;
+                            this.showMessage('❌ 複製失敗：' + error.message);
+                        });
+                    });
+                },
+
                 deletePoll(id) {
                     this.askConfirm('確定要刪除這個投票活動？資料將無法復原！', () => {
                         db.ref(`pollsList/${id}`).remove();
@@ -446,35 +541,26 @@
                     });
                 },
 
-                // 核心修改點：點擊選項後立刻更新到 Firebase
                 toggleSelection(index) {
                     const pos = this.mySelections.indexOf(index);
                     if (pos !== -1) {
-                        // 取消選擇 (會將該項目移出陣列，分數自然就會在重新計算時被扣除)
                         this.mySelections.splice(pos, 1);
                     } else {
-                        // 新增選擇
                         if (this.mySelections.length < this.pollSettings.maxVotes) {
                             this.mySelections.push(index);
                         } else {
                             this.showMessage(`⚠️ 最多只能選擇 ${this.pollSettings.maxVotes} 項！若要更改請先點擊取消。`);
-                            return; // 這裡不繼續往下存檔
+                            return; 
                         }
                     }
-                    
-                    // 修改完成後，立刻發送至 Firebase 存檔
                     this.autoSaveVote();
                 },
                 
-                // 自動存檔邏輯
                 autoSaveVote() {
                     if (this.mySelections.length === 0) {
-                        // 如果學員取消了所有選項 (陣列為空)，直接移除該學員的紀錄
-                        // 這能徹底確保 Firebase 資料庫不會殘留空陣列導致無法預期的計分錯誤
                         db.ref(`polls/${this.pollId}/votes/${this.studentId}`).remove()
                             .catch(err => { this.showMessage('❌ 同步失敗：' + err.message); });
                     } else {
-                        // 否則，將當下最新的選擇陣列直接覆蓋寫入
                         db.ref(`polls/${this.pollId}/votes/${this.studentId}`).set(this.mySelections)
                             .catch(err => { this.showMessage('❌ 同步失敗：' + err.message); });
                     }
