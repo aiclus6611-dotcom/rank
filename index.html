@@ -9,9 +9,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <style>
-        body { font-family: "微軟正黑體", sans-serif; background-color: #f4f6f8; margin: 0; padding: 0; overflow-x: hidden; }
+        body { font-family: "微軟正黑體", "Microsoft JhengHei", sans-serif; background-color: #f8fafc; margin: 0; padding: 0; overflow-x: hidden; color: #1e293b;}
         
-        /* --- 通用元件 --- */
+        /* --- 通用元件 (保留給學員與講師端使用) --- */
         .btn { padding: 10px 18px; border-radius: 6px; border: none; cursor: pointer; font-size: 1rem; margin: 5px; transition: 0.2s; white-space: nowrap; font-weight: bold;}
         .btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1);}
         .btn:disabled { background: #ccc !important; cursor: not-allowed; transform: none; box-shadow: none; color: #666 !important;}
@@ -24,21 +24,37 @@
         input, select { padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; box-sizing: border-box; }
         .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
 
-        /* --- 大廳樣式 --- */
-        .lobby-wrapper { min-height: 100vh; padding: 40px 20px; box-sizing: border-box; }
-        .lobby-container { max-width: 1000px; margin: 0 auto; }
-        .lobby-header { text-align: center; color: #333; margin-bottom: 40px; font-size: 2rem; font-weight: bold; }
-        
-        .create-box { display: flex; gap: 15px; margin-bottom: 40px; align-items: center; flex-wrap: wrap; }
-        .create-box input { flex: 1; min-width: 250px; font-size: 1.1rem; padding: 12px; }
+        /* === 新版管理後台登入畫面樣式 === */
+        .login-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background-color: #f8fafc; }
+        .login-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; width: 100%; max-width: 400px; box-sizing: border-box; border-top: 6px solid #0ea5e9; }
+        .login-box h2 { color: #0f172a; margin-bottom: 25px; margin-top: 0; font-size: 1.8rem; }
+        .login-box input { width: 100%; padding: 14px; font-size: 1.1rem; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 20px; box-sizing: border-box; outline: none; transition: 0.3s; text-align: center; letter-spacing: 2px;}
+        .login-box input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
+        .btn-login { background: #0ea5e9; color: white; border: none; cursor: pointer; transition: 0.2s; font-weight: bold; border-radius: 8px;}
+        .btn-login:hover { opacity: 0.9; transform: translateY(-1px); }
 
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .item-card { border-top: 5px solid #1976d2; display: flex; flex-direction: column; transition: 0.3s; }
-        .item-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
-        .item-card h3 { margin: 0 0 10px 0; color: #333; font-size: 1.4rem; line-height: 1.3; }
-        .meta { color: #888; font-size: 0.9rem; margin-bottom: 25px; flex: 1; }
-        .actions { display: flex; flex-direction: column; gap: 10px; }
-        .actions .btn { margin: 0; width: 100%; text-align: center; box-sizing: border-box; }
+        /* === 新版管理後台專用佈局 === */
+        .admin-container { max-width: 1100px; margin: 0 auto; padding: 40px 20px; box-sizing: border-box; }
+        .admin-header { text-align: center; margin-bottom: 30px; color: #1e293b; font-size: 2.2rem; font-weight: bold; display: flex; justify-content: center; align-items: center; gap: 12px; }
+        .admin-create-box { background: white; padding: 25px; border-radius: 12px; display: flex; gap: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); margin-bottom: 30px; align-items: center; flex-wrap: wrap; }
+        .admin-create-box input { flex: 1; padding: 14px 18px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1.1rem; min-width: 250px; outline: none; transition: 0.3s; }
+        .admin-create-box input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
+        .admin-room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; padding-bottom: 50px; }
+        .room-card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-top: 6px solid #0ea5e9; position: relative; transition: transform 0.2s, box-shadow 0.2s; }
+        .room-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.07); }
+        .room-title { font-size: 1.4rem; font-weight: bold; color: #0f172a; margin-bottom: 10px; line-height: 1.3; }
+        .room-date { color: #64748b; font-size: 0.95rem; margin-bottom: 20px; }
+        
+        /* 管理後台專用按鈕 */
+        .btn-block { display: block; width: 100%; margin: 8px 0; padding: 10px; font-size: 1rem; border-radius: 8px; font-weight: bold; text-align: center; box-sizing: border-box; cursor: pointer; border: none; transition: 0.2s; text-decoration: none;}
+        .btn-block:hover { opacity: 0.9; transform: translateY(-1px); }
+        .admin-btn-primary { background: #0ea5e9; color: white; }
+        .admin-btn-warning { background-color: #f59e0b; color: white; }
+        .admin-btn-outline { background: white; border: 1px solid #d1d5db; color: #374151; }
+        .admin-btn-outline-blue { background: white; border: 1px solid #bae6fd; color: #0284c7; }
+        .admin-btn-outline-green { background: white; border: 1px solid #a7f3d0; color: #059669; }
+        .admin-btn-danger { background: #dc2626; color: white; }
+        .admin-btn-success { background: #10b981; color: white; }
 
         /* --- 講師端樣式 --- */
         .teacher-wrapper { padding: 30px 20px; max-width: 1200px; margin: 0 auto; }
@@ -129,43 +145,43 @@
             </div>
         </div>
 
-        <div v-if="currentView === 'login'" class="lobby-wrapper" style="display: flex; justify-content: center; align-items: center;">
-            <div class="card" style="width: 400px; max-width: 90%; text-align: center;">
-                <h2 style="color: #333; margin-top: 0; margin-bottom: 10px;">🔒 系統登入</h2>
-                <p style="color: #666; margin-bottom: 25px;">請輸入管理密碼以進入投票管理大廳</p>
-                <input type="password" v-model="loginPassword" placeholder="輸入密碼..." @keydown.enter="login" style="width: 100%; margin-bottom: 20px; text-align: center; font-size: 1.2rem; letter-spacing: 2px;">
-                <button class="btn btn-primary" @click="login" style="width: 100%; font-size: 1.1rem; padding: 12px;">登入系統</button>
+        <div v-if="currentView === 'login'" class="login-container">
+            <div class="login-box">
+                <h2>🔒 後台管理登入</h2>
+                <input type="password" v-model="loginPassword" placeholder="請輸入管理密碼..." @keydown.enter="login">
+                <button class="btn-login" style="width: 100%; padding: 14px; font-size: 1.1rem;" @click="login">登入</button>
             </div>
         </div>
 
-        <div v-else-if="currentView === 'lobby'" class="lobby-wrapper">
-            <div class="lobby-container">
-                <div class="lobby-header">📊 結構化排序投票系統</div>
-                
-                <div class="card create-box">
-                    <input type="text" v-model="newPollName" placeholder="輸入新投票活動名稱..." @keydown.enter="createPoll">
-                    <button class="btn btn-success" @click="createPoll" style="font-size: 1.1rem; padding: 12px 24px;">＋ 建立新投票</button>
-                </div>
+        <div v-else-if="currentView === 'lobby'" class="admin-container">
+            <div class="admin-header">
+                <span style="font-size: 2.8rem; color:#0ea5e9;">📊</span> 結構化排序投票系統
+            </div>
 
-                <div class="grid">
-                    <div v-for="poll in pollsList" :key="poll.id" class="card item-card">
-                        <h3>{{ poll.name }}</h3>
-                        <div class="meta">建立於: {{ new Date(poll.createdAt).toLocaleString() }}</div>
-                        <div class="actions">
-                            <a :href="getLink(poll.id, 'teacher')" target="_blank" class="btn btn-primary" style="text-decoration:none;">👨‍🏫 開啟講師投影畫面</a>
-                            <button class="btn btn-outline" @click="copyLink(poll.id, 'student')">🔗 複製學員連結</button>
-                            
-                            <div style="display: flex; gap: 10px;">
-                                <button class="btn btn-secondary" @click="openRename(poll)" style="flex: 1; padding: 10px 5px; font-size: 0.95rem;">✏️ 重新命名</button>
-                                <button class="btn btn-success" @click="duplicatePoll(poll)" style="flex: 1; padding: 10px 5px; font-size: 0.95rem; background-color: #43a047;">📄 複製活動</button>
-                            </div>
+            <div class="admin-create-box">
+                <input type="text" v-model="newPollName" placeholder="輸入新投票活動名稱..." @keydown.enter="createPoll">
+                <button class="btn-login" @click="createPoll" style="font-size: 1.1rem; padding: 14px 28px; background: #10b981;">＋ 建立新投票</button>
+            </div>
 
-                            <button class="btn btn-danger" @click="deletePoll(poll.id)">🗑️ 刪除活動</button>
+            <div class="admin-room-grid">
+                <div v-for="poll in pollsList" :key="poll.id" class="room-card">
+                    <div class="room-title">{{ poll.name }}</div>
+                    <div class="room-date">建立於: {{ new Date(poll.createdAt).toLocaleString() }}</div>
+                    <div class="room-actions">
+                        <a :href="getLink(poll.id, 'teacher')" target="_blank" class="btn-block admin-btn-primary">👨‍🏫 開啟講師投影畫面</a>
+                        <button class="btn-block admin-btn-warning" @click="copyLink(poll.id, 'student')">🔗 複製學員連結</button>
+                        
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn-block admin-btn-outline-blue" @click="openRename(poll)" style="margin: 0;">✏️ 重新命名</button>
+                            <button class="btn-block admin-btn-outline-green" @click="duplicatePoll(poll)" style="margin: 0;">📄 複製活動</button>
                         </div>
+
+                        <button class="btn-block admin-btn-danger" @click="deletePoll(poll.id)" style="margin-top: 8px;">🗑️ 刪除活動</button>
                     </div>
-                    <div v-if="!isLoading && pollsList.length === 0" style="grid-column: 1 / -1; text-align: center; color: #999; padding: 60px;">
-                        <h2 style="margin:0;">目前無投票活動</h2><p style="margin-top: 10px;">請從上方建立您的第一個投票框架。</p>
-                    </div>
+                </div>
+                
+                <div v-if="!isLoading && pollsList.length === 0" style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 50px; background: white; border-radius: 12px; border: 2px dashed #e2e8f0;">
+                    目前尚無任何投票活動，請於上方輸入名稱建立。
                 </div>
             </div>
         </div>
