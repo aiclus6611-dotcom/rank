@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>結構化排序投票系統 (無限組別版)</title>
+    <title>結構化排序投票系統 (無限組別版) - 歷史追蹤擴充</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -19,7 +19,8 @@
         .btn-success { background: #4caf50; color: white; }
         .btn-danger { background: #d32f2f; color: white; }
         .btn-secondary { background: #757575; color: white; }
-        .btn-outline { background: transparent; border: 2px solid #1976d2; color: #1976d2; }
+        .btn-outline { background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; }
+        .btn-outline:hover { background: #e2e8f0; }
         
         input, select { padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; box-sizing: border-box; }
         .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
@@ -54,7 +55,6 @@
         .admin-btn-outline-blue { background: white; border: 1px solid #bae6fd; color: #0284c7; }
         .admin-btn-outline-green { background: white; border: 1px solid #a7f3d0; color: #059669; }
         .admin-btn-danger { background: #dc2626; color: white; }
-        .admin-btn-success { background: #10b981; color: white; }
 
         /* --- 講師端樣式 --- */
         .teacher-wrapper { padding: 30px 20px; max-width: 1200px; margin: 0 auto; }
@@ -188,16 +188,24 @@
 
         <div v-else-if="currentView === 'teacher'" class="teacher-wrapper">
             
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                 <h2 style="margin:0; color: #555; font-size: 1.5rem;">講師投影儀表板</h2>
-                <div style="display: flex; align-items: center;">
+                <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
                     <span class="status-badge" :class="pollSettings.isActive ? 'status-on' : 'status-off'">
                         {{ pollSettings.isActive ? '🟢 投票開放中' : '🔴 投票已關閉' }}
                     </span>
                     <button v-if="!pollSettings.isActive" class="btn btn-success" @click="toggleActive(true)">▶️ 開放投票</button>
                     <button v-else class="btn btn-danger" @click="toggleActive(false)">⏸️ 停止投票</button>
-                    <div style="width: 1px; height: 30px; background: #ccc; margin: 0 15px;"></div>
-                    <button class="btn btn-secondary" @click="clearVotes">🗑️ 清空數據</button>
+                    
+                    <div style="width: 1px; height: 30px; background: #ccc; margin: 0 10px;"></div>
+                    
+                    <button class="btn btn-outline" @click="exportResults" title="將當前成績下載為 JSON 檔">💾 匯出本次</button>
+                    <button class="btn btn-outline" @click="triggerFileInput" title="讀取過去的 JSON 檔進行總和疊加">📂 匯入歷史</button>
+                    <button v-if="historicalFilesCount > 0" class="btn btn-secondary" @click="clearImportedHistory">清除疊加</button>
+                    <input type="file" ref="importInput" @change="importHistory" accept=".json" multiple style="display: none;">
+                    
+                    <div style="width: 1px; height: 30px; background: #ccc; margin: 0 10px;"></div>
+                    <button class="btn btn-danger" @click="clearVotes" style="background: #e53935;">🗑️ 清空即時</button>
                 </div>
             </div>
 
@@ -205,8 +213,12 @@
                 <h1 style="text-align: center; margin-top: 0; margin-bottom: 10px; color: #1976d2; font-size: 2.2rem; line-height: 1.4;">
                     {{ pollSettings.question || '等待設定題目...' }}
                 </h1>
+                
                 <p style="text-align: center; color: #757575; margin-bottom: 40px; font-size: 1.2rem; font-weight: bold;">
-                    參與人數：{{ Object.keys(votes).length }} 人
+                    本次參與：{{ Object.keys(votes).length }} 人
+                    <span v-if="historicalParticipants > 0" style="color: #e65100; margin-left: 10px;">
+                        (已疊加歷史紀錄 {{ historicalParticipants }} 人，共計 {{ Object.keys(votes).length + historicalParticipants }} 人)
+                    </span>
                 </p>
 
                 <div v-if="rankedResults.length > 0" style="max-width: 900px; margin: 0 auto;">
@@ -216,7 +228,12 @@
                         </div>
                         <div class="result-bar-container" style="height: 36px;">
                             <div class="result-bar" :style="{ width: (maxScore > 0 ? (res.score / maxScore * 100) : 0) + '%' }"></div>
-                            <span class="result-score" style="line-height: 36px; font-size: 1.1rem;">積分: {{ res.score }}</span>
+                            <span class="result-score" style="line-height: 36px; font-size: 1.1rem; text-shadow: 1px 1px 2px rgba(255,255,255,0.8);">
+                                總分: {{ res.score }}
+                                <span v-if="res.historyScore > 0" style="font-size: 0.9rem; color: #d32f2f; font-weight: normal; margin-left: 5px;">
+                                    (含歷史 {{ res.historyScore }})
+                                </span>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -314,8 +331,8 @@
             data() {
                 return {
                     isLoading: true,
-                    currentView: 'login', // 預設導向登入
-                    loginPassword: '',    // 登入密碼狀態
+                    currentView: 'login', 
+                    loginPassword: '',    
                     
                     pollId: '',
                     pollsList: [],
@@ -323,8 +340,6 @@
                     
                     toastMsg: '',
                     confirmModal: { show: false, message: '', action: null },
-                    
-                    // 重新命名用的 Modal 狀態
                     renameModal: { show: false, id: '', newName: '' },
 
                     studentId: '',
@@ -335,6 +350,11 @@
                     
                     votes: {}, 
                     mySelections: [],
+
+                    // --- 新增：歷史數據追蹤狀態 ---
+                    historicalScores: {}, // 儲存格式: { "選項文字": 累積積分 }
+                    historicalParticipants: 0,
+                    historicalFilesCount: 0,
                 }
             },
             computed: {
@@ -343,6 +363,7 @@
                     
                     let scores = this.pollSettings.options.map(() => 0);
                     
+                    // 1. 計算 Firebase 上的本次即時分數
                     Object.values(this.votes).forEach(studentVotes => {
                         studentVotes.forEach((optIndex, rank) => {
                             if (optIndex < scores.length && rank < this.pollSettings.maxVotes) {
@@ -351,11 +372,18 @@
                         });
                     });
 
-                    return this.pollSettings.options.map((optText, idx) => ({
-                        text: optText,
-                        score: scores[idx],
-                        originalIndex: idx
-                    })).sort((a, b) => b.score - a.score);
+                    // 2. 合併歷史疊加分數 (透過文字精準匹配)
+                    return this.pollSettings.options.map((optText, idx) => {
+                        let currentScore = scores[idx];
+                        let historyScore = this.historicalScores[optText] || 0;
+                        return {
+                            text: optText,
+                            currentScore: currentScore,
+                            historyScore: historyScore,
+                            score: currentScore + historyScore, // 總分 = 本次 + 歷史
+                            originalIndex: idx
+                        };
+                    }).sort((a, b) => b.score - a.score);
                 },
                 maxScore() {
                     if (this.rankedResults.length === 0) return 1;
@@ -368,7 +396,6 @@
                 const roleParam = urlParams.get('role');
 
                 if (!pollParam) {
-                    // 若無指定參數，則留在登入畫面，關閉 Loading
                     this.currentView = 'login';
                     this.isLoading = false;
                 } else {
@@ -401,12 +428,10 @@
                 }
             },
             methods: {
-                // --- 登入功能 ---
                 login() {
                     if (this.loginPassword === '20150117') {
                         this.isLoading = true;
                         this.currentView = 'lobby';
-                        // 登入成功後再讀取大廳資料
                         db.ref('pollsList').on('value', snap => {
                             const val = snap.val();
                             this.pollsList = val ? Object.keys(val).map(key => ({ id: key, ...val[key] })) : [];
@@ -450,7 +475,6 @@
                     this.showMessage('✅ 投票建立成功！');
                 },
 
-                // --- 重新命名功能 ---
                 openRename(poll) {
                     this.renameModal.id = poll.id;
                     this.renameModal.newName = poll.name;
@@ -463,7 +487,6 @@
                         return;
                     }
                     const targetId = this.renameModal.id;
-                    // 同步更新大廳列表名稱，以及內部設定的 title
                     db.ref(`pollsList/${targetId}`).update({ name: newTitle });
                     db.ref(`polls/${targetId}/settings`).update({ title: newTitle });
                     
@@ -471,27 +494,19 @@
                     this.showMessage('✅ 重新命名成功！');
                 },
 
-                // --- 複製活動功能 ---
                 duplicatePoll(poll) {
                     this.askConfirm(`確定要複製活動「${poll.name}」嗎？將一併複製題目與選項設定。`, () => {
                         this.isLoading = true;
-                        
-                        // 1. 抓取原始活動的設定檔
                         db.ref(`polls/${poll.id}/settings`).once('value').then(snapshot => {
                             const originalSettings = snapshot.val();
                             const duplicateName = poll.name + ' (複製)';
-                            
-                            // 2. 建立新的 List 節點
                             const ref = db.ref('pollsList').push();
                             ref.set({ name: duplicateName, createdAt: Date.now() });
-                            
-                            // 3. 將原設定完整寫入新活動，並強制關閉投票閘門，更新 Title
                             db.ref(`polls/${ref.key}/settings`).set({
                                 ...originalSettings,
                                 title: duplicateName,
-                                isActive: false // 複製過去的活動預設必須關閉，以免直接開放入場
+                                isActive: false 
                             });
-                            
                             this.isLoading = false;
                             this.showMessage('✅ 活動已成功複製！');
                         }).catch(error => {
@@ -551,12 +566,87 @@
                     this.showMessage(state ? '✅ 投票閘門已開啟' : '⏸️ 投票已暫停');
                 },
                 clearVotes() {
-                    this.askConfirm('確定清空所有人的投票紀錄？', () => {
+                    this.askConfirm('確定清空雲端上的即時投票紀錄？(此動作不影響已疊加的歷史數據)', () => {
                         db.ref(`polls/${this.pollId}/votes`).remove();
                         this.showMessage('🗑️ 票數已清空');
                     });
                 },
 
+                // --- 新增：歷史數據匯出與匯入功能 ---
+                exportResults() {
+                    if (!this.pollSettings.question || this.rankedResults.length === 0) {
+                        this.showMessage('⚠️ 尚無資料可供匯出！');
+                        return;
+                    }
+                    
+                    // 確保匯出時，只打包「本次即時分數 (currentScore)」，避免重複把疊加後的總分再匯出
+                    const exportData = {
+                        exportDate: new Date().toISOString(),
+                        pollId: this.pollId,
+                        pollName: this.pollSettings.title || '未命名活動',
+                        question: this.pollSettings.question,
+                        participants: Object.keys(this.votes).length,
+                        results: this.rankedResults.map(r => ({
+                            text: r.text,
+                            score: r.currentScore
+                        }))
+                    };
+
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+                    const downloadAnchorNode = document.createElement('a');
+                    downloadAnchorNode.setAttribute("href", dataStr);
+                    const fileName = `投票紀錄_${exportData.pollName}_${new Date().toISOString().slice(0,10)}.json`;
+                    downloadAnchorNode.setAttribute("download", fileName);
+                    document.body.appendChild(downloadAnchorNode);
+                    downloadAnchorNode.click();
+                    downloadAnchorNode.remove();
+                    this.showMessage('💾 本次投票結果已成功下載至電腦！');
+                },
+                triggerFileInput() {
+                    this.$refs.importInput.click();
+                },
+                importHistory(event) {
+                    const files = event.target.files;
+                    if (!files || files.length === 0) return;
+
+                    let loadedCount = 0;
+                    Array.from(files).forEach(file => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            try {
+                                const data = JSON.parse(e.target.result);
+                                if (data.results && Array.isArray(data.results)) {
+                                    this.historicalParticipants += (data.participants || 0);
+                                    data.results.forEach(item => {
+                                        if (item.text && item.score) {
+                                            if (!this.historicalScores[item.text]) {
+                                                this.historicalScores[item.text] = 0;
+                                            }
+                                            this.historicalScores[item.text] += item.score;
+                                        }
+                                    });
+                                    this.historicalFilesCount++;
+                                }
+                            } catch (err) {
+                                console.error("匯入檔案解析失敗", err);
+                            }
+                            loadedCount++;
+                            if (loadedCount === files.length) {
+                                this.showMessage(`✅ 成功匯入並疊加 ${files.length} 份歷史紀錄！`);
+                                event.target.value = ''; // 清空 input 以允許重複匯入相同檔案
+                            }
+                        };
+                        reader.readAsText(file);
+                    });
+                },
+                clearImportedHistory() {
+                    this.historicalScores = {};
+                    this.historicalParticipants = 0;
+                    this.historicalFilesCount = 0;
+                    this.showMessage('🧹 已清除畫面上的歷史疊加數據');
+                },
+
+                // --- 學員端投票邏輯 ---
                 toggleSelection(index) {
                     const pos = this.mySelections.indexOf(index);
                     if (pos !== -1) {
@@ -571,7 +661,6 @@
                     }
                     this.autoSaveVote();
                 },
-                
                 autoSaveVote() {
                     if (this.mySelections.length === 0) {
                         db.ref(`polls/${this.pollId}/votes/${this.studentId}`).remove()
