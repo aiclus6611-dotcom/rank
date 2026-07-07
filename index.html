@@ -22,14 +22,14 @@
         .btn-outline { background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; }
         .btn-outline:hover { background: #e2e8f0; }
         
-        input, select { padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; box-sizing: border-box; }
+        input, select, type { padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; box-sizing: border-box; }
         .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
 
         /* === 新版管理後台登入畫面樣式 === */
         .login-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background-color: #f8fafc; }
         .login-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; width: 100%; max-width: 400px; box-sizing: border-box; border-top: 6px solid #0ea5e9; }
         .login-box h2 { color: #0f172a; margin-bottom: 25px; margin-top: 0; font-size: 1.8rem; }
-        .login-box input { width: 100%; padding: 14px; font-size: 1.1rem; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 20px; box-sizing: border-box; outline: none; transition: 0.3s; text-align: center; letter-spacing: 2px;}
+        .login-box input[type="password"] { width: 100%; padding: 14px; font-size: 1.1rem; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 20px; box-sizing: border-box; outline: none; transition: 0.3s; text-align: center; letter-spacing: 2px;}
         .login-box input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
         .btn-login { background: #0ea5e9; color: white; border: none; cursor: pointer; transition: 0.2s; font-weight: bold; border-radius: 8px;}
         .btn-login:hover { opacity: 0.9; transform: translateY(-1px); }
@@ -38,7 +38,7 @@
         .admin-container { max-width: 1100px; margin: 0 auto; padding: 40px 20px; box-sizing: border-box; }
         .admin-header { text-align: center; margin-bottom: 30px; color: #1e293b; font-size: 2.2rem; font-weight: bold; display: flex; justify-content: center; align-items: center; gap: 12px; }
         .admin-create-box { background: white; padding: 25px; border-radius: 12px; display: flex; gap: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); margin-bottom: 30px; align-items: center; flex-wrap: wrap; }
-        .admin-create-box input { flex: 1; padding: 14px 18px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1.1rem; min-width: 250px; outline: none; transition: 0.3s; }
+        .admin-create-box input[type="text"] { flex: 1; padding: 14px 18px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1.1rem; min-width: 250px; outline: none; transition: 0.3s; }
         .admin-create-box input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
         .admin-room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; padding-bottom: 50px; }
         .room-card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-top: 6px solid #0ea5e9; position: relative; transition: transform 0.2s, box-shadow 0.2s; }
@@ -76,6 +76,7 @@
         .settings-modal { width: 600px; max-width: 95%; max-height: 85vh; overflow-y: auto; text-align: left; }
         .config-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
         .config-row input { flex: 1; }
+        .radio-group label { margin-right: 15px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
 
         /* --- 學員端樣式 --- */
         .student-wrapper { padding: 20px; max-width: 600px; margin: 0 auto; padding-bottom: 80px; box-sizing: border-box; }
@@ -90,6 +91,13 @@
         .rank-badge {
             position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
             width: 32px; height: 32px; background: #1976d2; color: white;
+            border-radius: 50%; text-align: center; line-height: 32px; font-weight: bold; font-size: 1.2rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .check-badge {
+            position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
+            width: 32px; height: 32px; background: #4caf50; color: white;
             border-radius: 50%; text-align: center; line-height: 32px; font-weight: bold; font-size: 1.2rem;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
@@ -251,10 +259,27 @@
                     <label style="font-weight:bold; display:block; margin-bottom:8px; font-size: 1.1rem;">主軸問題：</label>
                     <input type="text" v-model="localSettings.question" placeholder="例如：針對本次專案，請選出您認為最重要的三個成功關鍵..." style="width:100%; margin-bottom: 20px; font-size: 1.1rem;">
                     
-                    <label style="font-weight:bold; display:block; margin-bottom:8px; font-size: 1.1rem;">每人可投幾票 (排序)：</label>
-                    <select v-model.number="localSettings.maxVotes" style="width:100%; margin-bottom: 25px; font-size: 1.1rem;">
-                        <option v-for="n in 10" :key="n" :value="n">選出前 {{ n }} 名</option>
-                    </select>
+                    <label style="font-weight:bold; display:block; margin-bottom:8px; font-size: 1.1rem;">投票模式：</label>
+                    <div class="radio-group" style="margin-bottom: 20px; padding: 10px; background: #f1f5f9; border-radius: 8px;">
+                        <label><input type="radio" v-model="localSettings.voteMode" value="ranked"> 排序積分 (依順位給分)</label>
+                        <label><input type="radio" v-model="localSettings.voteMode" value="standard"> 一般投票 (無權重，一票一分)</label>
+                    </div>
+
+                    <div v-if="localSettings.voteMode === 'ranked'">
+                        <label style="font-weight:bold; display:block; margin-bottom:8px; font-size: 1.1rem;">每人可投幾票 (排序)：</label>
+                        <select v-model.number="localSettings.maxVotes" style="width:100%; margin-bottom: 25px; font-size: 1.1rem;">
+                            <option v-for="n in 10" :key="n" :value="n">選出前 {{ n }} 名</option>
+                        </select>
+                    </div>
+                    
+                    <div v-if="localSettings.voteMode === 'standard'">
+                        <label style="font-weight:bold; display:block; margin-bottom:8px; font-size: 1.1rem;">單選 / 多選限制：</label>
+                        <select v-model.number="localSettings.standardLimit" style="width:100%; margin-bottom: 25px; font-size: 1.1rem;">
+                            <option :value="1">單選 (僅能選 1 項)</option>
+                            <option :value="0">無限制多選 (可全選)</option>
+                            <option v-for="n in 10" :key="'limit_'+(n+1)" :value="n+1">最多選 {{ n+1 }} 項</option>
+                        </select>
+                    </div>
 
                     <label style="font-weight:bold; display:block; margin-bottom:8px; font-size: 1.1rem;">候選選項：</label>
                     <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
@@ -284,9 +309,17 @@
             
             <div v-else>
                 <div class="card" style="margin-bottom: 20px; border-left: 6px solid #1976d2;">
-                    <h2 style="margin: 0 0 10px 0; color: #333; line-height: 1.4;">{{ pollSettings.question || '請針對下方選項進行排序：' }}</h2>
+                    <h2 style="margin: 0 0 10px 0; color: #333; line-height: 1.4;">{{ pollSettings.question || '請針對下方選項進行投票：' }}</h2>
                     <p style="margin: 0; color: #e65100; font-weight: bold;">
-                        📌 請依序點選出前 {{ pollSettings.maxVotes }} 名，若要修改，可再次點擊取消。
+                        <span v-if="!pollSettings.voteMode || pollSettings.voteMode === 'ranked'">
+                            📌 請依序點選出前 {{ pollSettings.maxVotes }} 名，若要修改，可再次點擊取消。
+                        </span>
+                        <span v-else>
+                            📌 請點選您支持的選項 
+                            <span v-if="pollSettings.standardLimit === 1">(單選)</span>
+                            <span v-else-if="pollSettings.standardLimit === 0">(無限制多選)</span>
+                            <span v-else>(最多選 {{ pollSettings.standardLimit }} 項)</span>。
+                        </span>
                     </p>
                 </div>
 
@@ -296,15 +329,22 @@
                          :class="{ 'selected': mySelections.includes(idx) }"
                          @click="toggleSelection(idx)">
                         {{ opt }}
-                        <div v-if="mySelections.includes(idx)" class="rank-badge">
+                        
+                        <div v-if="mySelections.includes(idx) && (!pollSettings.voteMode || pollSettings.voteMode === 'ranked')" class="rank-badge">
                             {{ mySelections.indexOf(idx) + 1 }}
+                        </div>
+                        <div v-if="mySelections.includes(idx) && pollSettings.voteMode === 'standard'" class="check-badge">
+                            ✓
                         </div>
                     </div>
                 </div>
 
                 <div class="bottom-action">
                     <div style="font-size: 1.2rem; color: #333; font-weight: bold;">
-                        已選擇：<span style="color:#1976d2; font-size:1.4rem;">{{ mySelections.length }}</span> / {{ pollSettings.maxVotes }} 
+                        已選擇：<span style="color:#1976d2; font-size:1.4rem;">{{ mySelections.length }}</span> 
+                        <span v-if="!pollSettings.voteMode || pollSettings.voteMode === 'ranked'"> / {{ pollSettings.maxVotes }}</span>
+                        <span v-else-if="pollSettings.standardLimit > 0"> / {{ pollSettings.standardLimit }}</span>
+                        <span v-else> 項</span>
                         <span style="font-size: 1rem; color: #4caf50; margin-left: 10px; font-weight: normal;">✔️ 進度已即時同步</span>
                     </div>
                 </div>
@@ -343,15 +383,15 @@
                     renameModal: { show: false, id: '', newName: '' },
 
                     studentId: '',
-                    pollSettings: { question: '', options: [], maxVotes: 3, isActive: false },
+                    pollSettings: { question: '', options: [], maxVotes: 3, isActive: false, voteMode: 'ranked', standardLimit: 0 },
                     
                     showSettingsModal: false,
-                    localSettings: { question: '', options: [], maxVotes: 3 }, 
+                    localSettings: { question: '', options: [], maxVotes: 3, voteMode: 'ranked', standardLimit: 0 }, 
                     
                     votes: {}, 
                     mySelections: [],
 
-                    // --- 新增：歷史數據追蹤狀態 ---
+                    // --- 歷史數據追蹤狀態 ---
                     historicalScores: {}, // 儲存格式: { "選項文字": 累積積分 }
                     historicalParticipants: 0,
                     historicalFilesCount: 0,
@@ -362,12 +402,22 @@
                     if (!this.pollSettings.options || this.pollSettings.options.length === 0) return [];
                     
                     let scores = this.pollSettings.options.map(() => 0);
+                    const mode = this.pollSettings.voteMode || 'ranked';
                     
                     // 1. 計算 Firebase 上的本次即時分數
                     Object.values(this.votes).forEach(studentVotes => {
                         studentVotes.forEach((optIndex, rank) => {
-                            if (optIndex < scores.length && rank < this.pollSettings.maxVotes) {
-                                scores[optIndex] += (this.pollSettings.maxVotes - rank);
+                            if (optIndex < scores.length) {
+                                if (mode === 'standard') {
+                                    // 一般投票：每票均等為 1 分
+                                    scores[optIndex] += 1;
+                                } else {
+                                    // 排序積分：依順位遞減給分
+                                    const maxV = this.pollSettings.maxVotes || 3;
+                                    if (rank < maxV) {
+                                        scores[optIndex] += (maxV - rank);
+                                    }
+                                }
                             }
                         });
                     });
@@ -414,7 +464,13 @@
                     db.ref(`polls/${this.pollId}/settings`).on('value', snapshot => {
                         const val = snapshot.val();
                         if (val) {
-                            this.pollSettings = { ...val, options: val.options || [] };
+                            // 預防舊資料缺少欄位
+                            this.pollSettings = { 
+                                ...val, 
+                                options: val.options || [],
+                                voteMode: val.voteMode || 'ranked',
+                                standardLimit: val.standardLimit !== undefined ? val.standardLimit : 0
+                            };
                         }
                         this.isLoading = false;
                     });
@@ -469,6 +525,8 @@
                         question: '',
                         options: [],
                         maxVotes: 3,
+                        voteMode: 'ranked',
+                        standardLimit: 0,
                         isActive: false
                     });
                     this.newPollName = '';
@@ -542,7 +600,11 @@
                 },
 
                 openSettingsModal() {
-                    this.localSettings = JSON.parse(JSON.stringify(this.pollSettings));
+                    // 確保開啟時帶有預設值，避免舊資料 undefined 導致畫面無法選擇
+                    const settingsCopy = JSON.parse(JSON.stringify(this.pollSettings));
+                    if (!settingsCopy.voteMode) settingsCopy.voteMode = 'ranked';
+                    if (settingsCopy.standardLimit === undefined) settingsCopy.standardLimit = 0;
+                    this.localSettings = settingsCopy;
                     this.showSettingsModal = true;
                 },
                 saveSettings() {
@@ -552,7 +614,9 @@
                     db.ref(`polls/${this.pollId}/settings`).update({
                         question: this.localSettings.question,
                         options: this.localSettings.options,
-                        maxVotes: this.localSettings.maxVotes
+                        maxVotes: this.localSettings.maxVotes,
+                        voteMode: this.localSettings.voteMode,
+                        standardLimit: this.localSettings.standardLimit
                     });
                     this.showSettingsModal = false;
                     this.showMessage('✅ 設定已儲存並同步給學員');
@@ -572,14 +636,13 @@
                     });
                 },
 
-                // --- 新增：歷史數據匯出與匯入功能 ---
+                // --- 歷史數據匯出與匯入功能 ---
                 exportResults() {
                     if (!this.pollSettings.question || this.rankedResults.length === 0) {
                         this.showMessage('⚠️ 尚無資料可供匯出！');
                         return;
                     }
                     
-                    // 確保匯出時，只打包「本次即時分數 (currentScore)」，避免重複把疊加後的總分再匯出
                     const exportData = {
                         exportDate: new Date().toISOString(),
                         pollId: this.pollId,
@@ -633,7 +696,7 @@
                             loadedCount++;
                             if (loadedCount === files.length) {
                                 this.showMessage(`✅ 成功匯入並疊加 ${files.length} 份歷史紀錄！`);
-                                event.target.value = ''; // 清空 input 以允許重複匯入相同檔案
+                                event.target.value = ''; 
                             }
                         };
                         reader.readAsText(file);
@@ -648,15 +711,34 @@
 
                 // --- 學員端投票邏輯 ---
                 toggleSelection(index) {
+                    const mode = this.pollSettings.voteMode || 'ranked';
                     const pos = this.mySelections.indexOf(index);
+                    
                     if (pos !== -1) {
+                        // 已經選過，則取消選取
                         this.mySelections.splice(pos, 1);
                     } else {
-                        if (this.mySelections.length < this.pollSettings.maxVotes) {
-                            this.mySelections.push(index);
+                        // 尚未選取，判斷加入邏輯
+                        if (mode === 'standard') {
+                            const limit = this.pollSettings.standardLimit !== undefined ? this.pollSettings.standardLimit : 0;
+                            if (limit === 1) {
+                                // 單選防呆優化：直接取代先前的選項
+                                this.mySelections = [index];
+                            } else if (limit > 0 && this.mySelections.length >= limit) {
+                                this.showMessage(`⚠️ 這是「最多選 ${limit} 項」題型！若要更改請先點擊取消。`);
+                                return;
+                            } else {
+                                this.mySelections.push(index);
+                            }
                         } else {
-                            this.showMessage(`⚠️ 最多只能選擇 ${this.pollSettings.maxVotes} 項！若要更改請先點擊取消。`);
-                            return; 
+                            // 排序模式
+                            const maxV = this.pollSettings.maxVotes || 3;
+                            if (this.mySelections.length < maxV) {
+                                this.mySelections.push(index);
+                            } else {
+                                this.showMessage(`⚠️ 最多只能排序前 ${maxV} 名！若要更改請先點擊取消。`);
+                                return; 
+                            }
                         }
                     }
                     this.autoSaveVote();
