@@ -71,6 +71,12 @@
         .qr-config-preview { display: block; max-width: 200px; max-height: 190px; width: auto; height: auto; object-fit: contain; border: 1px solid #cbd5e1; background: white; border-radius: 8px; padding: 8px; margin: 10px 0; }
         .qr-settings-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
         .qr-settings-actions .btn { margin: 0; }
+        /* 可直接按 Ctrl+V / ⌘V 的 QR 圖片貼上區；保留原圖檔上傳方式 */
+        .qr-paste-zone { display: block; margin: 13px 0 10px; padding: 18px 14px; border: 2px dashed #93c5fd; border-radius: 10px; background: #fff; text-align: center; cursor: text; color: #1e40af; outline: none; line-height: 1.7; }
+        .qr-paste-zone:focus-visible, .qr-paste-zone:focus { border-color: #2563eb; background: #eff6ff; box-shadow: 0 0 0 3px rgba(37,99,235,.13); }
+        .qr-paste-zone[aria-disabled="true"] { opacity: .6; cursor: progress; }
+        .qr-paste-zone small { display: block; font-size: .85rem; color: #64748b; }
+
         @media (max-width: 850px) {
             .teacher-wrapper { padding: 16px 12px; }
             .presentation-layout { flex-direction: column; gap: 14px; }
@@ -301,7 +307,7 @@
             <button type="button" class="toolbar-trigger" @click="openSettingsModal" title="開啟題目與 QR Code 設定" aria-label="開啟設定">⚙️</button>
 
             <div v-if="showSettingsModal" class="modal-overlay">
-                <div class="modal-box settings-modal">
+                <div class="modal-box settings-modal" @paste="handleQrPaste">
                     <h2 style="margin-top:0; border-bottom: 2px solid #eee; padding-bottom: 15px; color: #333;">⚙️ 題目與選項設計</h2>
                     
                     <label style="font-weight:bold; display:block; margin-bottom:8px; font-size: 1.1rem;">主軸問題：</label>
@@ -347,18 +353,26 @@
                     <div class="qr-config-section">
                         <label for="qr-code-upload" style="font-weight: bold; display: block; margin-bottom: 8px; font-size: 1.1rem;">📱 講師投影 QR Code 圖片</label>
                         <p style="color: #475569; font-size: 0.93rem; line-height: 1.65; margin: 0 0 12px;">上傳您準備好的學員網址 QR Code，將顯示於講師畫面左側，並可拖曳調整寬度。建議先確認 QR Code 掃描後連到本活動的學員頁面。</p>
+                        <div ref="qrPasteZone" class="qr-paste-zone" tabindex="0" role="group" aria-label="QR Code 圖片貼上區，點選後按 Ctrl 加 V 或 Command 加 V" :aria-disabled="qrProcessing || settingsSaving" @click="$event.currentTarget.focus()">
+                            <strong>📋 點這裡，再按 Ctrl + V 貼上 QR Code 圖片</strong>
+                            <small>Mac：⌘ + V。直接貼上已複製的圖片，成功後會自動儲存至雲端，不需要再按下方「儲存並更新」。</small>
+                        </div>
+                        <div class="qr-settings-actions" style="margin: 0 0 12px;">
+                            <button type="button" class="btn btn-outline" @click="pasteQrFromClipboard" :disabled="qrProcessing || settingsSaving" title="使用瀏覽器剪貼簿功能直接讀取圖片（部分瀏覽器可能要求授權）">📋 讀取剪貼簿圖片</button>
+                        </div>
+                        <label for="qr-code-upload" style="display:block; font-size:.93rem; color:#475569; margin: 0 0 6px;">或使用原本的圖檔上傳：</label>
                         <input id="qr-code-upload" type="file" accept="image/png,image/jpeg,image/webp" @change="handleQrUpload" :disabled="qrProcessing || settingsSaving" style="display: block; width: 100%; max-width: 100%; background: white; font-size: 0.95rem;">
-                        <span v-if="qrProcessing" style="display:block; color:#1d4ed8; margin-top:8px;">正在處理圖片...</span>
+                        <span v-if="qrProcessing" role="status" style="display:block; color:#1d4ed8; margin-top:8px;">{{ qrPasteAutoSaving ? '正在貼上圖片並自動儲存至雲端…' : '正在處理圖片…' }}</span>
                         <img v-if="localQrImage" :src="localQrImage" class="qr-config-preview" alt="預覽 QR Code">
                         <p v-else style="color:#64748b; margin:10px 0; font-size:0.95rem;">尚未設定 QR Code，投影畫面會維持原本的單欄投票版面。</p>
                         <div class="qr-settings-actions">
                             <button v-if="localQrImage" class="btn btn-outline" @click="localQrImage = null; qrChanged = true" type="button" :disabled="qrProcessing || settingsSaving">移除 QR Code</button>
                             <button v-if="qrBackups.length" class="btn btn-outline" @click="restoreQrFromBackup" type="button" :disabled="qrProcessing || settingsSaving">↶ 還原先前 QR Code</button>
                         </div>
-                        <small style="display:block; color:#64748b; margin-top:10px;">支援 PNG、JPG、WebP。新圖片會壓縮成清晰的 PNG 存於此活動的雲端設定；更換或移除前會備份原圖，方便還原。</small>
+                        <small style="display:block; color:#64748b; margin-top:10px;">支援 PNG、JPG、WebP。剪貼簿貼圖會自動儲存；選檔上傳、更換備份或移除圖片，仍需按「儲存並更新」。新圖片會轉成 PNG；更換或移除前會備份原圖。</small>
                     </div>
                     <div style="display: flex; gap: 15px; margin-top: 30px; justify-content: flex-end; flex-wrap:wrap;">
-                        <button class="btn btn-secondary" @click="showSettingsModal = false" style="padding: 12px 24px;" :disabled="settingsSaving">取消</button>
+                        <button class="btn btn-secondary" @click="showSettingsModal = false" style="padding: 12px 24px;" :disabled="qrProcessing || settingsSaving">取消</button>
                         <button class="btn btn-primary" @click="saveSettings" style="padding: 12px 24px;" :disabled="qrProcessing || settingsSaving">{{ settingsSaving ? '儲存中…' : '💾 儲存並更新' }}</button>
                     </div>
                 </div>
@@ -460,6 +474,7 @@
                     localQrImage: null,
                     qrChanged: false,
                     qrProcessing: false,
+                    qrPasteAutoSaving: false,
                     settingsSaving: false,
                     qrBackups: [],
                     settingsBackups: [],
@@ -798,20 +813,12 @@
                     this.qrChanged = true;
                     this.showMessage('↶ 已取回前一張 QR Code，請按「儲存並更新」套用');
                 },
-                async handleQrUpload(event) {
-                    const input = event.target;
-                    const file = input.files && input.files[0];
-                    if (!file) return;
-                    input.value = '';
-                    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-                        this.showMessage('⚠️ 請選擇 PNG、JPG 或 WebP 圖片');
-                        return;
+                // 將圖檔與剪貼簿圖片共用同一條檢查、壓縮流程。
+                async prepareQrPng(file) {
+                    if (!file || !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+                        throw new Error('請使用 PNG、JPG 或 WebP 圖片');
                     }
-                    if (file.size > 15 * 1024 * 1024) {
-                        this.showMessage('⚠️ 圖片不可超過 15 MB');
-                        return;
-                    }
-                    this.qrProcessing = true;
+                    if (file.size > 15 * 1024 * 1024) throw new Error('圖片不可超過 15 MB');
                     let objectUrl;
                     try {
                         objectUrl = URL.createObjectURL(file);
@@ -836,18 +843,111 @@
                             context.imageSmoothingEnabled = ratio >= 1;
                             context.drawImage(img, 0, 0, canvas.width, canvas.height);
                             compressed = canvas.toDataURL('image/png');
-                            // 控制每張圖片在 Realtime Database 的體積，避免超大上傳。
+                            // 避免將超大圖片寫入 Firebase Realtime Database。
                             if (compressed.length <= 850000) break;
                         }
-                        if (!compressed || compressed.length > 850000) throw new Error('圖片仍過大，請換用單純的 QR Code 圖');
-                        this.localQrImage = compressed;
-                        this.qrChanged = true;
-                        this.showMessage('✅ QR Code 圖片已載入，請按「儲存並更新」');
-                    } catch (error) {
-                        this.showMessage('❌ QR Code 圖片處理失敗：' + error.message);
+                        if (!compressed || compressed.length > 850000) throw new Error('圖片仍過大，請改用較簡單的 QR Code 圖片');
+                        return compressed;
                     } finally {
                         if (objectUrl) URL.revokeObjectURL(objectUrl);
+                    }
+                },
+                // 寫入 QR 前先備份舊圖；備份失敗便不會覆蓋原圖。
+                async persistQrImage(newImage) {
+                    const path = `polls/${this.pollId}/presentation/qrImage`;
+                    const latest = (await db.ref(path).once('value')).val() || null;
+                    if (latest === newImage) return;
+                    if (latest) {
+                        await db.ref(`polls/${this.pollId}/qrBackups`).push({
+                            image: latest,
+                            savedAt: firebase.database.ServerValue.TIMESTAMP,
+                            action: newImage ? 'before_replace' : 'before_remove'
+                        });
+                    }
+                    await db.ref(path).set(newImage || null);
+                },
+                // paste 與上傳沿用相同圖片處理；僅貼上模式在讀取完後自動儲存雲端。
+                async acceptQrImage(file, saveImmediately) {
+                    if (!this.showSettingsModal || this.qrProcessing || this.settingsSaving) return;
+                    this.qrProcessing = true;
+                    this.qrPasteAutoSaving = saveImmediately;
+                    try {
+                        const prepared = await this.prepareQrPng(file);
+                        this.localQrImage = prepared;
+                        this.qrChanged = true;
+                        if (saveImmediately) {
+                            // 只更新講師 QR，不提交正在編輯但尚未按儲存的題目內容。
+                            await this.persistQrImage(prepared);
+                            this.qrChanged = false;
+                            this.qrImage = prepared;
+                            await this.loadQrBackups();
+                            this.showMessage('✅ QR Code 已貼上並自動儲存，講師畫面已更新');
+                        } else {
+                            this.showMessage('✅ QR Code 圖片已載入，請按「儲存並更新」');
+                        }
+                    } catch (error) {
+                        this.showMessage((saveImmediately ? '❌ 貼上／自動上傳失敗：' : '❌ QR 圖片處理失敗：') + error.message +
+                            (this.qrChanged ? '；圖片保留在預覽中，可再按「儲存並更新」重試' : ''));
+                    } finally {
+                        this.qrPasteAutoSaving = false;
                         this.qrProcessing = false;
+                    }
+                },
+                async handleQrUpload(event) {
+                    const input = event.target;
+                    const file = input.files && input.files[0];
+                    if (!file) return;
+                    input.value = '';
+                    await this.acceptQrImage(file, false);
+                },
+                // 避免在題目／選項輸入框貼文字時，意外覆蓋 QR Code。
+                async handleQrPaste(event) {
+                    if (!this.showSettingsModal || this.qrProcessing || this.settingsSaving) return;
+                    const target = event.target;
+                    if (target && target.closest && target.closest('input,textarea,[contenteditable="true"]')) return;
+                    const clipboard = event.clipboardData;
+                    const types = ['image/png', 'image/jpeg', 'image/webp'];
+                    let file = null;
+                    if (clipboard) {
+                        for (const item of Array.from(clipboard.items || [])) {
+                            if (item.kind === 'file' && types.includes(item.type)) {
+                                file = item.getAsFile();
+                                if (file) break;
+                            }
+                        }
+                        if (!file) file = Array.from(clipboard.files || []).find(f => types.includes(f.type)) || null;
+                    }
+                    if (!file) {
+                        if (target && target.closest && target.closest('.qr-paste-zone'))
+                            this.showMessage('⚠️ 剪貼簿沒有可用的圖片，請先複製 QR Code 圖片再按 Ctrl + V');
+                        return; // 無圖時不攔截貼上文字
+                    }
+                    event.preventDefault();
+                    await this.acceptQrImage(file, true);
+                },
+                // 按鈕屬於瀏覽器 Clipboard API；若無權限，仍可直接在貼上區按 Ctrl+V。
+                async pasteQrFromClipboard() {
+                    if (!this.showSettingsModal || this.qrProcessing || this.settingsSaving) return;
+                    if (!navigator.clipboard || typeof navigator.clipboard.read !== 'function') {
+                        this.showMessage('此瀏覽器不支援按鈕讀取，請點貼上框後按 Ctrl + V（Mac：⌘V）');
+                        if (this.$refs.qrPasteZone) this.$refs.qrPasteZone.focus();
+                        return;
+                    }
+                    try {
+                        const items = await navigator.clipboard.read();
+                        const types = ['image/png', 'image/jpeg', 'image/webp'];
+                        for (const item of items) {
+                            const type = types.find(t => item.types.includes(t));
+                            if (type) {
+                                const blob = await item.getType(type);
+                                await this.acceptQrImage(blob, true);
+                                return;
+                            }
+                        }
+                        this.showMessage('⚠️ 剪貼簿沒有圖片，請先複製 QR Code 圖片');
+                    } catch (error) {
+                        this.showMessage('⚠️ 無法讀取剪貼簿（可能未授權），請點貼上框按 Ctrl + V：' + error.message);
+                        if (this.$refs.qrPasteZone) this.$refs.qrPasteZone.focus();
                     }
                 },
                 async saveSettings() {
@@ -858,17 +958,7 @@
                     try {
                         // 先獨立儲存 QR，修改前保留可還原快照；任何備份失敗都不覆蓋原圖。
                         if (this.qrChanged) {
-                            const path = `polls/${this.pollId}/presentation/qrImage`;
-                            const latest = (await db.ref(path).once('value')).val() || null;
-                            if (latest !== this.localQrImage) {
-                                if (latest) {
-                                    await db.ref(`polls/${this.pollId}/qrBackups`).push({
-                                        image: latest, savedAt: firebase.database.ServerValue.TIMESTAMP,
-                                        action: this.localQrImage ? 'before_replace' : 'before_remove'
-                                    });
-                                }
-                                await db.ref(path).set(this.localQrImage || null);
-                            }
+                            await this.persistQrImage(this.localQrImage);
                         }
                         const settingsPath = `polls/${this.pollId}/settings`;
                         const newValues = {
