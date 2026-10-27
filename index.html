@@ -57,8 +57,29 @@
         .admin-btn-danger { background: #dc2626; color: white; }
 
         /* --- 講師端樣式 --- */
-        .teacher-wrapper { padding: 30px 20px; max-width: 1200px; margin: 0 auto; }
-        .presentation-board { background: white; border-radius: 16px; padding: 50px 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); min-height: 60vh;}
+        .teacher-wrapper { padding: 30px 20px; max-width: 1600px; margin: 0 auto; box-sizing: border-box; }
+        .presentation-layout { display: flex; width: 100%; align-items: stretch; min-height: 60vh; }
+        .presentation-board { flex: 1 1 0%; min-width: 0; background: white; border-radius: 16px; padding: 50px 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); min-height: 60vh; box-sizing: border-box; }
+        .qr-side-panel { flex-shrink: 0; min-width: 0; background: white; border-radius: 16px; padding: 20px 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; box-sizing: border-box; }
+        .qr-panel-title { text-align: center; font-size: clamp(1rem, 1.7vw, 1.4rem); font-weight: bold; color: #1976d2; margin: 4px 0 18px; }
+        .qr-image { width: 100%; height: auto; max-height: min(67vh, 760px); object-fit: contain; image-rendering: auto; }
+        .qr-panel-hint { font-size: 0.88rem; color: #64748b; text-align: center; line-height: 1.6; margin-top: 16px; }
+        .qr-resize-handle { flex: 0 0 16px; cursor: col-resize; touch-action: none; display: flex; align-items: center; justify-content: center; position: relative; }
+        .qr-resize-handle::before { content: ''; display: block; height: 72px; width: 5px; border-radius: 10px; background: #cbd5e1; transition: background 0.15s; }
+        .qr-resize-handle:hover::before, .qr-resize-handle:focus-visible::before { background: #1976d2; }
+        .qr-config-section { background: #f1f5f9; border: 1px solid #dbe3ef; border-radius: 10px; padding: 16px; margin-top: 22px; }
+        .qr-config-preview { display: block; max-width: 200px; max-height: 190px; width: auto; height: auto; object-fit: contain; border: 1px solid #cbd5e1; background: white; border-radius: 8px; padding: 8px; margin: 10px 0; }
+        .qr-settings-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .qr-settings-actions .btn { margin: 0; }
+        @media (max-width: 850px) {
+            .teacher-wrapper { padding: 16px 12px; }
+            .presentation-layout { flex-direction: column; gap: 14px; }
+            .qr-side-panel { width: 100% !important; flex-basis: auto !important; }
+            .qr-image { max-height: 300px; }
+            .qr-resize-handle { display: none; }
+            .presentation-board { padding: 28px 18px; }
+            .presentation-board h1 { font-size: 1.7rem !important; }
+        }
         
         .result-bar-container { background: #eee; border-radius: 8px; width: 100%; margin-top: 8px; overflow: hidden; position: relative;}
         .result-bar { background: #4caf50; height: 100%; transition: width 0.5s ease-out; }
@@ -66,9 +87,9 @@
         
         /* 浮動齒輪按鈕 */
         .toolbar-trigger {
-            position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%;
+            position: fixed; bottom: 18px; right: 18px; width: 44px; height: 44px; border-radius: 50%;
             background: rgba(0,0,0,0.6); color: white; display: flex; justify-content: center; align-items: center;
-            font-size: 1.8rem; cursor: pointer; z-index: 2000; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            font-size: 14px; line-height: 1; border: none; padding: 0; cursor: pointer; z-index: 2000; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
         .toolbar-trigger:hover { background: rgba(0,0,0,0.9); transform: scale(1.1); }
 
@@ -171,6 +192,17 @@
                 <button class="btn-login" @click="createPoll" style="font-size: 1.1rem; padding: 14px 28px; background: #10b981;">＋ 建立新投票</button>
             </div>
 
+            <div style="margin-bottom: 20px; text-align:right;">
+                <button class="btn btn-outline" @click="toggleArchives" type="button">{{ showArchives ? '收起已刪活動' : '↶ 還原已刪活動' }}</button>
+            </div>
+            <div v-if="showArchives" class="card" style="margin-bottom:24px;">
+                <h3 style="margin-top:0;">已刪除活動（可復原）</h3>
+                <div v-if="archiveList.length === 0" style="color:#64748b;">目前沒有已封存的活動。</div>
+                <div v-for="entry in archiveList" :key="entry.archiveId" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:12px 0; border-bottom:1px solid #e2e8f0;">
+                    <span>{{ entry.name }} <small style="color:#64748b;">({{ new Date(entry.deletedAt).toLocaleString() }})</small></span>
+                    <button class="btn btn-outline" @click="restoreDeletedPoll(entry.archiveId)">↶ 還原活動與票數</button>
+                </div>
+            </div>
             <div class="admin-room-grid">
                 <div v-for="poll in pollsList" :key="poll.id" class="room-card">
                     <div class="room-title">{{ poll.name }}</div>
@@ -204,38 +236,53 @@
                     </span>
                     <button v-if="!pollSettings.isActive" class="btn btn-success" @click="toggleActive(true)">▶️ 開放投票</button>
                     <button v-else class="btn btn-danger" @click="toggleActive(false)">⏸️ 停止投票</button>
+                    <button class="btn" :class="showResults ? 'btn-outline' : 'btn-primary'" @click="showResults = !showResults" :aria-pressed="showResults" title="僅控制講師投影畫面，不會刪除或停止學員投票">
+                        {{ showResults ? '🙈 隱藏結果' : '👁️ 顯示結果' }}
+                    </button>
+                    <button v-if="qrImage" class="btn btn-outline" @click="qrPanelVisible = !qrPanelVisible" :aria-pressed="qrPanelVisible">
+                        {{ qrPanelVisible ? '◀ 收起 QR Code' : '▶ 展開 QR Code' }}
+                    </button>
                     
                     <div style="width: 1px; height: 30px; background: #ccc; margin: 0 10px;"></div>
                     
                     <button class="btn btn-outline" @click="exportResults" title="將當前成績下載為 JSON 檔">💾 匯出本次</button>
                     <button class="btn btn-outline" @click="triggerFileInput" title="讀取過去的 JSON 檔進行總和疊加">📂 匯入歷史</button>
                     <button v-if="historicalFilesCount > 0" class="btn btn-secondary" @click="clearImportedHistory">清除疊加</button>
+                    <button v-if="lastClearedHistory && !historicalFilesCount" class="btn btn-outline" @click="restoreClearedHistory">↶ 還原疊加</button>
                     <input type="file" ref="importInput" @change="importHistory" accept=".json" multiple style="display: none;">
                     
                     <div style="width: 1px; height: 30px; background: #ccc; margin: 0 10px;"></div>
                     <button class="btn btn-danger" @click="clearVotes" style="background: #e53935;">🗑️ 清空即時</button>
+                    <button v-if="voteBackupAvailable" class="btn btn-outline" @click="restoreClearedVotes">↶ 還原清空票數</button>
                 </div>
             </div>
 
-            <div class="presentation-board">
+            <div class="presentation-layout" ref="presentationLayout">
+                <aside v-if="qrImage && qrPanelVisible" class="qr-side-panel" :style="{ flexBasis: qrWidthPercent + '%' }" aria-label="學員掃碼投票區">
+                    <div class="qr-panel-title">📱 掃描 QR Code 參與投票</div>
+                    <img :src="qrImage" alt="講師上傳的學員投票 QR Code" class="qr-image">
+                    <p class="qr-panel-hint">請使用手機掃描，進入學員投票頁面</p>
+                </aside>
+                <div v-if="qrImage && qrPanelVisible" class="qr-resize-handle" role="separator" tabindex="0" aria-label="拖曳以調整 QR Code 區塊寬度" aria-orientation="vertical" @pointerdown.prevent="beginQrResize" @keydown.left.prevent="adjustQrWidth(-5)" @keydown.right.prevent="adjustQrWidth(5)" title="左右拖曳，可調整 QR Code 與投票區的比例"></div>
+                <div class="presentation-board">
                 <h1 style="text-align: center; margin-top: 0; margin-bottom: 10px; color: #1976d2; font-size: 2.2rem; line-height: 1.4;">
                     {{ pollSettings.question || '等待設定題目...' }}
                 </h1>
                 
                 <p style="text-align: center; color: #757575; margin-bottom: 40px; font-size: 1.2rem; font-weight: bold;">
-                    本次參與：{{ Object.keys(votes).length }} 人
-                    <span v-if="historicalParticipants > 0" style="color: #e65100; margin-left: 10px;">
+                    本次參與：{{ showResults ? Object.keys(votes).length : 0 }} 人
+                    <span v-if="showResults && historicalParticipants > 0" style="color: #e65100; margin-left: 10px;">
                         (已疊加歷史紀錄 {{ historicalParticipants }} 人，共計 {{ Object.keys(votes).length + historicalParticipants }} 人)
                     </span>
                 </p>
 
-                <div v-if="rankedResults.length > 0" style="max-width: 900px; margin: 0 auto;">
-                    <div v-for="(res, idx) in rankedResults" :key="idx" style="margin-bottom: 25px;">
+                <div v-if="presentationResults.length > 0" style="max-width: 900px; margin: 0 auto;">
+                    <div v-for="(res, idx) in presentationResults" :key="res.originalIndex" style="margin-bottom: 25px;">
                         <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.4rem; margin-bottom: 8px; color: #333;">
                             <span>第 {{ idx + 1 }} 名：{{ res.text || '(空白選項)' }}</span>
                         </div>
                         <div class="result-bar-container" style="height: 36px;">
-                            <div class="result-bar" :style="{ width: (maxScore > 0 ? (res.score / maxScore * 100) : 0) + '%' }"></div>
+                            <div class="result-bar" :style="{ width: (showResults && maxScore > 0 ? (res.score / maxScore * 100) : 0) + '%' }"></div>
                             <span class="result-score" style="line-height: 36px; font-size: 1.1rem; text-shadow: 1px 1px 2px rgba(255,255,255,0.8);">
                                 總分: {{ res.score }}
                                 <span v-if="res.historyScore > 0" style="font-size: 0.9rem; color: #d32f2f; font-weight: normal; margin-left: 5px;">
@@ -248,9 +295,10 @@
                 <div v-else style="text-align: center; color: #aaa; padding: 60px; font-size: 1.3rem;">
                     尚未建立選項，或無投票資料。<br>請點擊右下角「齒輪」圖示進行課程設定。
                 </div>
+                </div>
             </div>
 
-            <div class="toolbar-trigger" @click="openSettingsModal" title="開啟題目設定">⚙️</div>
+            <button type="button" class="toolbar-trigger" @click="openSettingsModal" title="開啟題目與 QR Code 設定" aria-label="開啟設定">⚙️</button>
 
             <div v-if="showSettingsModal" class="modal-overlay">
                 <div class="modal-box settings-modal">
@@ -293,9 +341,25 @@
                         <button class="btn btn-outline" style="width:100%; margin-top:15px;" @click="localSettings.options.push('')">＋ 新增選項</button>
                     </div>
 
-                    <div style="display: flex; gap: 15px; margin-top: 30px; justify-content: flex-end;">
-                        <button class="btn btn-secondary" @click="showSettingsModal = false" style="padding: 12px 24px;">取消</button>
-                        <button class="btn btn-primary" @click="saveSettings" style="padding: 12px 24px;">💾 儲存並更新</button>
+                    <div style="margin-top:18px;">
+                        <button v-if="settingsBackups.length" type="button" class="btn btn-outline" @click="restorePreviousSettings">↶ 還原先前題目與選項設定</button>
+                    </div>
+                    <div class="qr-config-section">
+                        <label for="qr-code-upload" style="font-weight: bold; display: block; margin-bottom: 8px; font-size: 1.1rem;">📱 講師投影 QR Code 圖片</label>
+                        <p style="color: #475569; font-size: 0.93rem; line-height: 1.65; margin: 0 0 12px;">上傳您準備好的學員網址 QR Code，將顯示於講師畫面左側，並可拖曳調整寬度。建議先確認 QR Code 掃描後連到本活動的學員頁面。</p>
+                        <input id="qr-code-upload" type="file" accept="image/png,image/jpeg,image/webp" @change="handleQrUpload" :disabled="qrProcessing || settingsSaving" style="display: block; width: 100%; max-width: 100%; background: white; font-size: 0.95rem;">
+                        <span v-if="qrProcessing" style="display:block; color:#1d4ed8; margin-top:8px;">正在處理圖片...</span>
+                        <img v-if="localQrImage" :src="localQrImage" class="qr-config-preview" alt="預覽 QR Code">
+                        <p v-else style="color:#64748b; margin:10px 0; font-size:0.95rem;">尚未設定 QR Code，投影畫面會維持原本的單欄投票版面。</p>
+                        <div class="qr-settings-actions">
+                            <button v-if="localQrImage" class="btn btn-outline" @click="localQrImage = null; qrChanged = true" type="button" :disabled="qrProcessing || settingsSaving">移除 QR Code</button>
+                            <button v-if="qrBackups.length" class="btn btn-outline" @click="restoreQrFromBackup" type="button" :disabled="qrProcessing || settingsSaving">↶ 還原先前 QR Code</button>
+                        </div>
+                        <small style="display:block; color:#64748b; margin-top:10px;">支援 PNG、JPG、WebP。新圖片會壓縮成清晰的 PNG 存於此活動的雲端設定；更換或移除前會備份原圖，方便還原。</small>
+                    </div>
+                    <div style="display: flex; gap: 15px; margin-top: 30px; justify-content: flex-end; flex-wrap:wrap;">
+                        <button class="btn btn-secondary" @click="showSettingsModal = false" style="padding: 12px 24px;" :disabled="settingsSaving">取消</button>
+                        <button class="btn btn-primary" @click="saveSettings" style="padding: 12px 24px;" :disabled="qrProcessing || settingsSaving">{{ settingsSaving ? '儲存中…' : '💾 儲存並更新' }}</button>
                     </div>
                 </div>
             </div>
@@ -386,7 +450,23 @@
                     pollSettings: { question: '', options: [], maxVotes: 3, isActive: false, voteMode: 'ranked', standardLimit: 0 },
                     
                     showSettingsModal: false,
-                    localSettings: { question: '', options: [], maxVotes: 3, voteMode: 'ranked', standardLimit: 0 }, 
+                    localSettings: { question: '', options: [], maxVotes: 3, voteMode: 'ranked', standardLimit: 0 },
+                    // 僅講師端的投影狀態：每次重新開啟都預設隱藏結果，實際票數照常儲存。
+                    showResults: false,
+                    qrImage: null,
+                    qrPanelVisible: true,
+                    qrWidthPercent: 30,
+                    qrResizing: false,
+                    localQrImage: null,
+                    qrChanged: false,
+                    qrProcessing: false,
+                    settingsSaving: false,
+                    qrBackups: [],
+                    settingsBackups: [],
+                    voteBackupAvailable: false,
+                    archiveList: [],
+                    showArchives: false,
+                    lastClearedHistory: null,
                     
                     votes: {}, 
                     mySelections: [],
@@ -398,6 +478,13 @@
                 }
             },
             computed: {
+                // 隱藏時維持原選項順序與零分，避免排序變化或參與人數暴露真實結果。
+                presentationResults() {
+                    if (this.showResults) return this.rankedResults;
+                    return (this.pollSettings.options || []).map((text, idx) => ({
+                        text, score: 0, historyScore: 0, currentScore: 0, originalIndex: idx
+                    }));
+                },
                 rankedResults() {
                     if (!this.pollSettings.options || this.pollSettings.options.length === 0) return [];
                     
@@ -451,6 +538,10 @@
                 } else {
                     this.pollId = pollParam;
                     this.currentView = roleParam === 'teacher' ? 'teacher' : 'student';
+                    if (this.currentView === 'teacher') {
+                        try { this.lastClearedHistory = JSON.parse(sessionStorage.getItem(`history_before_clear_${this.pollId}`) || 'null'); }
+                        catch (e) { this.lastClearedHistory = null; }
+                    }
 
                     if (this.currentView === 'student') {
                         let storedId = localStorage.getItem('class_voter_id');
@@ -475,6 +566,16 @@
                         this.isLoading = false;
                     });
 
+                    if (this.currentView === 'teacher') {
+                        db.ref(`polls/${this.pollId}/voteBackups`).limitToLast(1).on('value', snap => {
+                            this.voteBackupAvailable = snap.exists();
+                        }, err => console.warn('讀取投票備份狀態失敗', err));
+                        // QR 獨立於學生的投票設定，避免每個學員持續下載圖片。
+                        db.ref(`polls/${this.pollId}/presentation/qrImage`).on('value', snapshot => {
+                            this.qrImage = snapshot.val() || null;
+                        }, err => this.showMessage('⚠️ 無法讀取 QR Code：' + err.message));
+                    }
+
                     db.ref(`polls/${this.pollId}/votes`).on('value', snapshot => {
                         this.votes = snapshot.val() || {};
                         if (this.currentView === 'student' && this.votes[this.studentId]) {
@@ -498,6 +599,40 @@
                         this.showMessage('❌ 密碼錯誤，請重新輸入！');
                         this.loginPassword = '';
                     }
+                },
+
+                async toggleArchives() {
+                    this.showArchives = !this.showArchives;
+                    if (!this.showArchives) return;
+                    try {
+                        const snap = await db.ref('archivedPollsList').once('value');
+                        const val = snap.val() || {};
+                        this.archiveList = Object.entries(val).map(([archiveId, entry]) => ({ archiveId, ...entry }))
+                            .sort((a, b) => b.deletedAt - a.deletedAt);
+                    } catch (error) {
+                        this.showMessage('❌ 無法讀取活動備份：' + error.message);
+                    }
+                },
+                restoreDeletedPoll(archiveId) {
+                    this.askConfirm('確定還原這個活動嗎？原有投票、設定與 QR Code 將一併還原。', async () => {
+                        try {
+                            const ref = db.ref(`archivedPolls/${archiveId}`);
+                            const archived = (await ref.once('value')).val();
+                            if (!archived || !archived.pollId || !archived.pollData || !archived.pollMeta) throw new Error('找不到完整活動備份');
+                            const id = archived.pollId;
+                            const existingPoll = (await db.ref(`polls/${id}`).once('value')).exists();
+                            const existingMeta = (await db.ref(`pollsList/${id}`).once('value')).exists();
+                            if (existingPoll || existingMeta) throw new Error('同一活動 ID 已存在，為避免覆寫而停止還原');
+                            await db.ref().update({
+                                [`polls/${id}`]: archived.pollData,
+                                [`pollsList/${id}`]: archived.pollMeta,
+                                [`archivedPollsList/${archiveId}`]: null,
+                                [`archivedPolls/${archiveId}/restoredAt`]: firebase.database.ServerValue.TIMESTAMP
+                            });
+                            this.archiveList = this.archiveList.filter(entry => entry.archiveId !== archiveId);
+                            this.showMessage('✅ 已完整還原活動與原有投票');
+                        } catch (error) { this.showMessage('❌ 還原失敗：' + error.message); }
+                    });
                 },
 
                 showMessage(msg) {
@@ -575,10 +710,21 @@
                 },
 
                 deletePoll(id) {
-                    this.askConfirm('確定要刪除這個投票活動？資料將無法復原！', () => {
-                        db.ref(`pollsList/${id}`).remove();
-                        db.ref(`polls/${id}`).remove();
-                        this.showMessage('🗑️ 已刪除');
+                    this.askConfirm('確定要刪除這個投票活動？系統會先建立可還原的完整雲端封存。', async () => {
+                        try {
+                            const pollData = (await db.ref(`polls/${id}`).once('value')).val();
+                            const pollMeta = (await db.ref(`pollsList/${id}`).once('value')).val();
+                            if (!pollData || !pollMeta) throw new Error('活動資料不完整，為避免誤刪已停止');
+                            // 多路徑原子更新：備份與清除須同時成功，否則不刪原始資料。
+                            const archiveId = db.ref('archivedPolls').push().key;
+                            await db.ref().update({
+                                [`archivedPolls/${archiveId}`]: { pollId: id, pollData, pollMeta, deletedAt: Date.now() },
+                                [`archivedPollsList/${archiveId}`]: { pollId: id, name: pollMeta.name || '未命名活動', deletedAt: Date.now() },
+                                [`pollsList/${id}`]: null,
+                                [`polls/${id}`]: null
+                            });
+                            this.showMessage('🗑️ 活動已封存，可透過「還原已刪活動」復原');
+                        } catch (error) { this.showMessage('❌ 未刪除，備份失敗：' + error.message); }
                     });
                 },
                 getLink(id, role) {
@@ -600,26 +746,178 @@
                 },
 
                 openSettingsModal() {
-                    // 確保開啟時帶有預設值，避免舊資料 undefined 導致畫面無法選擇
+                    // 設定表單為暫存編輯，不影響還未儲存的雲端資料。
                     const settingsCopy = JSON.parse(JSON.stringify(this.pollSettings));
                     if (!settingsCopy.voteMode) settingsCopy.voteMode = 'ranked';
                     if (settingsCopy.standardLimit === undefined) settingsCopy.standardLimit = 0;
                     this.localSettings = settingsCopy;
+                    this.localQrImage = this.qrImage;
+                    this.qrChanged = false;
                     this.showSettingsModal = true;
+                    this.loadQrBackups();
+                    this.loadSettingsBackups();
                 },
-                saveSettings() {
-                    const cleanOptions = this.localSettings.options.filter(opt => opt.trim() !== '');
+                async loadSettingsBackups() {
+                    try {
+                        const snap = await db.ref(`polls/${this.pollId}/settingsBackups`).limitToLast(10).once('value');
+                        this.settingsBackups = Object.entries(snap.val() || {}).map(([id, value]) => ({ id, ...value }))
+                            .filter(item => item.settings && Array.isArray(item.settings.options))
+                            .sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+                    } catch (error) {
+                        this.settingsBackups = [];
+                        console.warn('無法讀取題目備份', error);
+                    }
+                },
+                restorePreviousSettings() {
+                    if (!this.settingsBackups.length) return;
+                    const old = this.settingsBackups[0].settings;
+                    this.localSettings = { ...this.localSettings,
+                        question: old.question || '',
+                        options: [...old.options],
+                        maxVotes: old.maxVotes || 3,
+                        voteMode: old.voteMode || 'ranked',
+                        standardLimit: old.standardLimit !== undefined ? old.standardLimit : 0
+                    };
+                    this.showMessage('↶ 已載入先前的題目設定，請按「儲存並更新」套用');
+                },
+                async loadQrBackups() {
+                    try {
+                        const snap = await db.ref(`polls/${this.pollId}/qrBackups`).limitToLast(10).once('value');
+                        const entries = snap.val() || {};
+                        this.qrBackups = Object.entries(entries).map(([id, value]) => ({ id, ...value }))
+                            .filter(item => item.image && item.image.startsWith('data:image/png;base64,'))
+                            .sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+                    } catch (error) {
+                        this.qrBackups = [];
+                        console.warn('無法讀取 QR 備份', error);
+                    }
+                },
+                restoreQrFromBackup() {
+                    if (!this.qrBackups.length) return;
+                    this.localQrImage = this.qrBackups[0].image;
+                    this.qrChanged = true;
+                    this.showMessage('↶ 已取回前一張 QR Code，請按「儲存並更新」套用');
+                },
+                async handleQrUpload(event) {
+                    const input = event.target;
+                    const file = input.files && input.files[0];
+                    if (!file) return;
+                    input.value = '';
+                    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+                        this.showMessage('⚠️ 請選擇 PNG、JPG 或 WebP 圖片');
+                        return;
+                    }
+                    if (file.size > 15 * 1024 * 1024) {
+                        this.showMessage('⚠️ 圖片不可超過 15 MB');
+                        return;
+                    }
+                    this.qrProcessing = true;
+                    let objectUrl;
+                    try {
+                        objectUrl = URL.createObjectURL(file);
+                        const img = new Image();
+                        await new Promise((resolve, reject) => {
+                            img.onload = resolve;
+                            img.onerror = () => reject(new Error('圖片無法開啟'));
+                            img.src = objectUrl;
+                        });
+                        const size = Math.max(img.naturalWidth, img.naturalHeight);
+                        if (!size) throw new Error('圖片大小無效');
+                        let compressed = null;
+                        for (const maxSide of [1100, 900, 700, 500, 350]) {
+                            const ratio = Math.min(1, maxSide / size);
+                            const canvas = document.createElement('canvas');
+                            canvas.width = Math.max(1, Math.round(img.naturalWidth * ratio));
+                            canvas.height = Math.max(1, Math.round(img.naturalHeight * ratio));
+                            const context = canvas.getContext('2d');
+                            if (!context) throw new Error('瀏覽器不支援圖片處理');
+                            context.fillStyle = '#ffffff';
+                            context.fillRect(0, 0, canvas.width, canvas.height);
+                            context.imageSmoothingEnabled = ratio >= 1;
+                            context.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            compressed = canvas.toDataURL('image/png');
+                            // 控制每張圖片在 Realtime Database 的體積，避免超大上傳。
+                            if (compressed.length <= 850000) break;
+                        }
+                        if (!compressed || compressed.length > 850000) throw new Error('圖片仍過大，請換用單純的 QR Code 圖');
+                        this.localQrImage = compressed;
+                        this.qrChanged = true;
+                        this.showMessage('✅ QR Code 圖片已載入，請按「儲存並更新」');
+                    } catch (error) {
+                        this.showMessage('❌ QR Code 圖片處理失敗：' + error.message);
+                    } finally {
+                        if (objectUrl) URL.revokeObjectURL(objectUrl);
+                        this.qrProcessing = false;
+                    }
+                },
+                async saveSettings() {
+                    if (this.settingsSaving || this.qrProcessing) return;
+                    const cleanOptions = (this.localSettings.options || []).filter(opt => typeof opt === 'string' && opt.trim() !== '');
                     this.localSettings.options = cleanOptions;
-                    
-                    db.ref(`polls/${this.pollId}/settings`).update({
-                        question: this.localSettings.question,
-                        options: this.localSettings.options,
-                        maxVotes: this.localSettings.maxVotes,
-                        voteMode: this.localSettings.voteMode,
-                        standardLimit: this.localSettings.standardLimit
-                    });
-                    this.showSettingsModal = false;
-                    this.showMessage('✅ 設定已儲存並同步給學員');
+                    this.settingsSaving = true;
+                    try {
+                        // 先獨立儲存 QR，修改前保留可還原快照；任何備份失敗都不覆蓋原圖。
+                        if (this.qrChanged) {
+                            const path = `polls/${this.pollId}/presentation/qrImage`;
+                            const latest = (await db.ref(path).once('value')).val() || null;
+                            if (latest !== this.localQrImage) {
+                                if (latest) {
+                                    await db.ref(`polls/${this.pollId}/qrBackups`).push({
+                                        image: latest, savedAt: firebase.database.ServerValue.TIMESTAMP,
+                                        action: this.localQrImage ? 'before_replace' : 'before_remove'
+                                    });
+                                }
+                                await db.ref(path).set(this.localQrImage || null);
+                            }
+                        }
+                        const settingsPath = `polls/${this.pollId}/settings`;
+                        const newValues = {
+                            question: this.localSettings.question,
+                            options: this.localSettings.options,
+                            maxVotes: this.localSettings.maxVotes,
+                            voteMode: this.localSettings.voteMode,
+                            standardLimit: this.localSettings.standardLimit
+                        };
+                        const oldSettings = (await db.ref(settingsPath).once('value')).val() || {};
+                        const changed = Object.keys(newValues).some(key =>
+                            JSON.stringify(oldSettings[key]) !== JSON.stringify(newValues[key]));
+                        if (changed) {
+                            await db.ref(`polls/${this.pollId}/settingsBackups`).push({
+                                settings: oldSettings,
+                                savedAt: firebase.database.ServerValue.TIMESTAMP,
+                                action: 'before_settings_update'
+                            });
+                            await db.ref(settingsPath).update(newValues);
+                        }
+                        this.qrChanged = false;
+                        this.showSettingsModal = false;
+                        this.showMessage('✅ 設定已儲存，講師與學員畫面已同步');
+                    } catch (error) {
+                        this.showMessage('❌ 儲存未完全成功，請重試：' + error.message);
+                    } finally {
+                        this.settingsSaving = false;
+                    }
+                },
+                adjustQrWidth(delta) {
+                    this.qrWidthPercent = Math.max(18, Math.min(65, this.qrWidthPercent + delta));
+                },
+                beginQrResize(event) {
+                    if (event.button !== undefined && event.button !== 0) return;
+                    this.qrResizing = true;
+                    this._qrPointerMove = e => {
+                        if (!this.qrResizing || !this.$refs.presentationLayout) return;
+                        const box = this.$refs.presentationLayout.getBoundingClientRect();
+                        if (box.width > 0) this.qrWidthPercent = Math.max(18, Math.min(65, (e.clientX - box.left) / box.width * 100));
+                    };
+                    this._qrPointerUp = () => {
+                        this.qrResizing = false;
+                        window.removeEventListener('pointermove', this._qrPointerMove);
+                        window.removeEventListener('pointerup', this._qrPointerUp);
+                        window.removeEventListener('pointercancel', this._qrPointerUp);
+                    };
+                    window.addEventListener('pointermove', this._qrPointerMove);
+                    window.addEventListener('pointerup', this._qrPointerUp);
+                    window.addEventListener('pointercancel', this._qrPointerUp);
                 },
                 toggleActive(state) {
                     if (state && (!this.pollSettings.options || this.pollSettings.options.length === 0)) {
@@ -630,9 +928,35 @@
                     this.showMessage(state ? '✅ 投票閘門已開啟' : '⏸️ 投票已暫停');
                 },
                 clearVotes() {
-                    this.askConfirm('確定清空雲端上的即時投票紀錄？(此動作不影響已疊加的歷史數據)', () => {
-                        db.ref(`polls/${this.pollId}/votes`).remove();
-                        this.showMessage('🗑️ 票數已清空');
+                    this.askConfirm('確定清空雲端即時投票嗎？清空前會先建立投票備份，可按「還原清空票數」恢復。', async () => {
+                        try {
+                            const votesRef = db.ref(`polls/${this.pollId}/votes`);
+                            const votesBefore = (await votesRef.once('value')).val();
+                            if (!votesBefore || !Object.keys(votesBefore).length) {
+                                this.showMessage('目前沒有即時票數可清空');
+                                return;
+                            }
+                            const backup = db.ref(`polls/${this.pollId}/voteBackups`).push();
+                            await backup.set({ votes: votesBefore, savedAt: firebase.database.ServerValue.TIMESTAMP, action: 'before_clear' });
+                            await votesRef.remove();
+                            this.showMessage('🗑️ 票數已清空，備份保留可還原');
+                        } catch (error) { this.showMessage('❌ 未完成清空：' + error.message); }
+                    });
+                },
+                restoreClearedVotes() {
+                    this.askConfirm('還原最近一次清空的票數？已有的新票數會保留，以免覆寫新資料。', async () => {
+                        try {
+                            const snap = await db.ref(`polls/${this.pollId}/voteBackups`).limitToLast(1).once('value');
+                            const list = snap.val() || {};
+                            const archived = Object.values(list)[0];
+                            if (!archived || !archived.votes) throw new Error('找不到投票備份');
+                            const votesRef = db.ref(`polls/${this.pollId}/votes`);
+                            const liveVotes = (await votesRef.once('value')).val() || {};
+                            const onlyMissing = Object.fromEntries(Object.entries(archived.votes)
+                                .filter(([studentId]) => !Object.prototype.hasOwnProperty.call(liveVotes, studentId)));
+                            if (Object.keys(onlyMissing).length) await votesRef.update(onlyMissing);
+                            this.showMessage(`✅ 已還原 ${Object.keys(onlyMissing).length} 筆投票；目前票數未被覆寫`);
+                        } catch (error) { this.showMessage('❌ 還原失敗：' + error.message); }
                     });
                 },
 
@@ -703,10 +1027,25 @@
                     });
                 },
                 clearImportedHistory() {
+                    this.lastClearedHistory = {
+                        scores: JSON.parse(JSON.stringify(this.historicalScores)),
+                        participants: this.historicalParticipants,
+                        count: this.historicalFilesCount
+                    };
+                    try { sessionStorage.setItem(`history_before_clear_${this.pollId}`, JSON.stringify(this.lastClearedHistory)); }
+                    catch (e) { console.warn('無法持久保存歷史快照', e); }
                     this.historicalScores = {};
                     this.historicalParticipants = 0;
                     this.historicalFilesCount = 0;
-                    this.showMessage('🧹 已清除畫面上的歷史疊加數據');
+                    this.showMessage('🧹 已清除畫面上的歷史疊加數據（可還原）');
+                },
+                restoreClearedHistory() {
+                    if (!this.lastClearedHistory) return;
+                    this.historicalScores = { ...this.lastClearedHistory.scores };
+                    this.historicalParticipants = this.lastClearedHistory.participants;
+                    this.historicalFilesCount = this.lastClearedHistory.count;
+                    this.lastClearedHistory = null;
+                    this.showMessage('✅ 已還原歷史疊加資料');
                 },
 
                 // --- 學員端投票邏輯 ---
