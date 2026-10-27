@@ -61,12 +61,6 @@
         .presentation-layout { display: flex; width: 100%; align-items: stretch; min-height: 60vh; position: relative; }
         .presentation-board { flex: 1 1 0%; min-width: 0; background: white; border-radius: 16px; padding: 50px 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); min-height: 60vh; box-sizing: border-box; }
         .qr-side-panel { flex-shrink: 0; min-width: 0; background: white; border-radius: 16px; padding: 20px 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; box-sizing: border-box; }
-        .qr-panel-header { width:100%; display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px; }
-        .qr-collapse-button { background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; font-size:.85rem; color:#1d4ed8; font-weight:bold; padding:8px 10px; cursor:pointer; white-space:nowrap; }
-        .qr-collapse-button:hover, .qr-collapse-button:focus-visible { background:#dbeafe; }
-        /* 收起時不再預留左欄，展開小把手浮在投影區左邊緣 */
-        .qr-expand-tab { position:absolute; z-index:4; top:24px; left:0; max-width:40px; padding:14px 8px; writing-mode:vertical-rl; text-orientation:mixed; border:1px solid #bfdbfe; border-left:none; border-radius:0 10px 10px 0; color:#1e40af; background:#dbeafe; box-shadow:2px 2px 7px rgba(0,0,0,.12); font-size:.9rem; font-weight:bold; cursor:pointer; }
-        .qr-expand-tab:hover, .qr-expand-tab:focus-visible { background:#bfdbfe; outline:2px solid #60a5fa; }
         .qr-panel-title { text-align: center; font-size: clamp(1rem, 1.7vw, 1.4rem); font-weight: bold; color: #1976d2; margin: 4px 0 18px; }
         .qr-image { width: 100%; height: auto; max-height: min(67vh, 760px); object-fit: contain; image-rendering: auto; }
         .qr-panel-hint { font-size: 0.88rem; color: #64748b; text-align: center; line-height: 1.6; margin-top: 16px; }
@@ -95,7 +89,6 @@
             .qr-side-panel { width: 100% !important; flex-basis: auto !important; }
             .qr-image { max-height: 300px; }
             .qr-resize-handle { display: none; }
-            .qr-expand-tab { top:10px; left:10px; writing-mode:horizontal-tb; max-width:none; border:1px solid #bfdbfe; border-radius:8px; padding:7px 11px; }
             .presentation-board { padding: 28px 18px; }
             .presentation-board h1 { font-size: 1.7rem !important; }
         }
@@ -104,19 +97,31 @@
         .result-bar { background: #4caf50; height: 100%; transition: width 0.5s ease-out; }
         .result-score { position: absolute; right: 15px; top: 0; font-weight: bold; color: #333; }
         
-        /* 浮動齒輪按鈕 */
+        /* 浮動齒輪按鈕：齒輪與灰色圓形底框一起縮小，不受全域按鈕樣式影響。 */
         .toolbar-trigger {
-            position: fixed; bottom: 18px; right: 18px; width: 44px; height: 44px; border-radius: 50%;
+            position: fixed; bottom: 18px; right: 18px;
+            width: 30px; height: 30px; min-width: 30px; min-height: 30px; max-width: 30px; max-height: 30px;
+            box-sizing: border-box; flex: 0 0 30px; border-radius: 50%;
             background: rgba(0,0,0,0.6); color: white; display: flex; justify-content: center; align-items: center;
-            font-size: 14px; line-height: 1; border: none; padding: 0; cursor: pointer; z-index: 2000; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            font-size: 14px; line-height: 1; border: none; padding: 0; cursor: pointer; z-index: 2000;
+            transition: background 0.2s, transform 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.23);
         }
-        .toolbar-trigger:hover { background: rgba(0,0,0,0.9); transform: scale(1.1); }
+        .toolbar-trigger:hover { background: rgba(0,0,0,0.85); transform: scale(1.06); }
+        .toolbar-trigger:focus-visible { outline: 2px solid #1976d2; outline-offset: 3px; }
 
         /* 設定專用 Modal */
         .settings-modal { width: 600px; max-width: 95%; max-height: 85vh; overflow-y: auto; text-align: left; }
         .config-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
         .config-row input { flex: 1; }
         .radio-group label { margin-right: 15px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+
+        /* 齒輪內的歷史匯入匯出與即時投票管理 */
+        .data-management-section { margin-top:24px; padding:18px; border:1px solid #dbe3ef; border-radius:12px; background:#f8fafc; }
+        .data-management-title { margin:0 0 10px; font-size:1.12rem; color:#1e3a8a; }
+        .data-management-hint { margin:7px 0 14px; font-size:.88rem; line-height:1.6; color:#64748b; }
+        .data-management-actions { display:flex; align-items:center; flex-wrap:wrap; gap:9px; }
+        .data-management-actions .btn { margin:0; }
+        .data-danger-actions { margin-top:16px; padding-top:14px; border-top:1px solid #e2e8f0; }
 
         /* --- 學員端樣式 --- */
         .student-wrapper { padding: 20px; max-width: 600px; margin: 0 auto; padding-bottom: 80px; box-sizing: border-box; }
@@ -172,7 +177,7 @@
         </div>
         <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
 
-        <div v-if="confirmModal.show" class="modal-overlay">
+        <div v-if="confirmModal.show" class="modal-overlay" style="z-index: 3501;">
             <div class="modal-box">
                 <h3 style="margin-top: 0; color: #d32f2f; font-size: 1.5rem;">⚠️ 確認操作</h3>
                 <p style="margin-bottom: 25px; font-size: 1.1rem; color: #555;">{{ confirmModal.message }}</p>
@@ -263,31 +268,16 @@
                         {{ qrPanelVisible ? '◀ 收起 QR Code' : '▶ 展開 QR Code' }}
                     </button>
                     
-                    <div style="width: 1px; height: 30px; background: #ccc; margin: 0 10px;"></div>
-                    
-                    <button class="btn btn-outline" @click="exportResults" title="將當前成績下載為 JSON 檔">💾 匯出本次</button>
-                    <button class="btn btn-outline" @click="triggerFileInput" title="讀取過去的 JSON 檔進行總和疊加">📂 匯入歷史</button>
-                    <button v-if="historicalFilesCount > 0" class="btn btn-secondary" @click="clearImportedHistory">清除疊加</button>
-                    <button v-if="lastClearedHistory && !historicalFilesCount" class="btn btn-outline" @click="restoreClearedHistory">↶ 還原疊加</button>
-                    <input type="file" ref="importInput" @change="importHistory" accept=".json" multiple style="display: none;">
-                    
-                    <div style="width: 1px; height: 30px; background: #ccc; margin: 0 10px;"></div>
-                    <button class="btn btn-danger" @click="clearVotes" style="background: #e53935;">🗑️ 清空即時</button>
-                    <button v-if="voteBackupAvailable" class="btn btn-outline" @click="restoreClearedVotes">↶ 還原清空票數</button>
                 </div>
             </div>
 
             <div class="presentation-layout" ref="presentationLayout">
                 <aside v-if="qrImage && qrPanelVisible" class="qr-side-panel" :style="{ flexBasis: qrWidthPercent + '%' }" aria-label="學員掃碼投票區">
-                    <div class="qr-panel-header">
-                        <div class="qr-panel-title">📱 掃描 QR Code 參與投票</div>
-                        <button type="button" class="qr-collapse-button" @click="qrPanelVisible = false" aria-label="完全收起左側 QR Code 區">◀ 完全收起</button>
-                    </div>
+                    <div class="qr-panel-title">📱 掃描 QR Code 參與投票</div>
                     <img :src="qrImage" alt="講師上傳的學員投票 QR Code" class="qr-image">
                     <p class="qr-panel-hint">請使用手機掃描，進入學員投票頁面</p>
                 </aside>
                 <div v-if="qrImage && qrPanelVisible" class="qr-resize-handle" role="separator" tabindex="0" aria-label="拖曳以調整 QR Code 區塊寬度" aria-orientation="vertical" @pointerdown.prevent="beginQrResize" @keydown.left.prevent="adjustQrWidth(-5)" @keydown.right.prevent="adjustQrWidth(5)" title="左右拖曳，可調整 QR Code 與投票區的比例"></div>
-                <button v-if="qrImage && !qrPanelVisible" type="button" class="qr-expand-tab" @click="qrPanelVisible = true" aria-label="重新展開左側 QR Code 區" title="點擊展開先前收起的 QR Code">▶ 展開 QR</button>
                 <div class="presentation-board">
                 <h1 style="text-align: center; margin-top: 0; margin-bottom: 10px; color: #1976d2; font-size: 2.2rem; line-height: 1.4;">
                     {{ pollSettings.question || '等待設定題目...' }}
@@ -370,7 +360,7 @@
                     </div>
                     <div class="qr-config-section">
                         <label for="qr-code-upload" style="font-weight: bold; display: block; margin-bottom: 8px; font-size: 1.1rem;">📱 講師投影 QR Code 圖片</label>
-                        <p style="color: #475569; font-size: 0.93rem; line-height: 1.65; margin: 0 0 12px;">您可以直接貼網址產生 QR Code，也可貼圖片或上傳圖檔。QR Code 顯示在講師畫面左側，並可調整寬度、完整收合與再次展開。</p>
+                        <p style="color: #475569; font-size: 0.93rem; line-height: 1.65; margin: 0 0 12px;">您可以直接貼網址產生 QR Code，也可貼圖片或上傳圖檔。QR Code 顯示在講師畫面左側，可拖曳調整寬度；收合與展開統一由投影畫面上方按鈕控制。</p>
                         <div class="qr-url-section">
                             <label for="qr-url-input">🔗 方式一：貼上網址，自動產生 QR Code</label>
                             <div class="qr-url-controls">
@@ -401,6 +391,22 @@
                         </div>
                         <small style="display:block; color:#64748b; margin-top:10px;">網址貼上／產生、剪貼簿貼圖都會自動儲存；選檔上傳、更換備份或移除圖片，仍需按「儲存並更新」。支援 PNG、JPG、WebP；新圖會轉成 PNG，且更換、移除前會備份原圖。</small>
                     </div>
+                    <section class="data-management-section" aria-labelledby="data-management-heading">
+                        <h3 id="data-management-heading" class="data-management-title">📂 投票資料管理</h3>
+                        <p class="data-management-hint">匯出本次、匯入歷史或清空即時票數都在這裡；操作不會儲存尚未按「儲存並更新」的題目與選項修改。</p>
+                        <div class="data-management-actions">
+                            <button type="button" class="btn btn-outline" @click="exportResults" title="將本次即時投票結果下載為 JSON 檔">💾 匯出本次</button>
+                            <button type="button" class="btn btn-outline" @click="triggerFileInput" title="匯入以前匯出的 JSON 檔並疊加分數">📂 匯入歷史</button>
+                            <button v-if="historicalFilesCount > 0" type="button" class="btn btn-secondary" @click="clearImportedHistory">清除疊加</button>
+                            <button v-if="lastClearedHistory && !historicalFilesCount" type="button" class="btn btn-outline" @click="restoreClearedHistory">↶ 還原疊加</button>
+                            <input type="file" ref="importInput" @change="importHistory" accept=".json,application/json" multiple style="display: none;" aria-label="選擇歷史投票 JSON 檔">
+                        </div>
+                        <div class="data-management-actions data-danger-actions">
+                            <button type="button" class="btn btn-danger" @click="clearVotes">🗑️ 清空即時</button>
+                            <button v-if="voteBackupAvailable" type="button" class="btn btn-outline" @click="restoreClearedVotes">↶ 還原清空票數</button>
+                        </div>
+                        <p class="data-management-hint">清空即時會先建立雲端票數備份，並再次要求確認；不會清除已匯入的歷史疊加。</p>
+                    </section>
                     <div style="display: flex; gap: 15px; margin-top: 30px; justify-content: flex-end; flex-wrap:wrap;">
                         <button class="btn btn-secondary" @click="showSettingsModal = false" style="padding: 12px 24px;" :disabled="qrProcessing || settingsSaving">取消</button>
                         <button class="btn btn-primary" @click="saveSettings" style="padding: 12px 24px;" :disabled="qrProcessing || settingsSaving">{{ settingsSaving ? '儲存中…' : '💾 儲存並更新' }}</button>
